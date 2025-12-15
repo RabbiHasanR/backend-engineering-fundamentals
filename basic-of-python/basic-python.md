@@ -239,4 +239,3 @@ Typing: Fluency with Python's type hinting system (mypy). This is non-negotiable
 
 Packaging: Creating and distributing your own packages using pyproject.toml and tools like Poetry or setuptools.
 
-
