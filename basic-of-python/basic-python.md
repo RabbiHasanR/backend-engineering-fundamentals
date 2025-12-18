@@ -19,6 +19,8 @@ This guide provides a comprehensive overview of essential and advanced Python co
 - **List/Set/Dict comprehensions**: Concise syntax for data transformations
 
 ### Functions
+- **pass by value or pass by reference**
+- **annonymous functions**: lambda
 - **Flexible Arguments**: `*args`, `**kwargs`
 - **Closures**: Functions retaining state
 - **First-class Functions**: Functions as objects
