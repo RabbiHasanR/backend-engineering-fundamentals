@@ -241,26 +241,3 @@ Typing: Fluency with Python's type hinting system (mypy). This is non-negotiable
 
 Packaging: Creating and distributing your own packages using pyproject.toml and tools like Poetry or setuptools.
 
-
-
-
-
-
-Are you crashing your RAM or getting MemoryError when reading millions of lines from a file? 🛑
-
-It’s a common mistake almost every Python developer do or di. I did it too. We default to loading everything into a list, only to watch our memory usage spike. Then I learned about the distinctions between Iterables, Iterators, and Generators, and it completely changed how I write efficient code.
-
-Iterables: Think of an iterable as a physical book sitting on a shelf. It is a passive container that holds all your content at once, taking up actual space in memory. Technically, any object that implements the __iter__ method falls into this category. It represents the "source" of your data, waiting to be read.
-
-Iterator: If the iterable is the book, the iterator is the bookmark. It is a lightweight object that tracks exactly where you are in the sequence. To be a true iterator, an object must implement both __iter__ and __next__ dunder methods. It doesn't hold the heavy data itself; it just knows how to fetch the next item. It’s important to remember that while every iterator is an iterable, not every iterable is an iterator.
-
-Generator: This is where the magic happens. Instead of storing the entire book in memory, a generator stores only the instructions on how to write it. Using yield or generator expressions (), it "prints" one page for you to read, and immediately discards it before printing the next. This is "lazy evaluation" at its finest.
-
-The Memory Impact? Massive.
-I ran a quick test processing 10 million integers:
-List Approach: data = [x for x in range(10**7)]  Memory Used: ~400 MB (All loaded at once)
-Generator Approach: data = (x for x in range(10**7)) Memory Used: ~112 Bytes (Constant memory!)
-
-Both loops run at roughly the same speed. One crashes your micro-service container; the other runs on a Raspberry Pi.
-
-If you don't need random access (e.g. data[50]) and you are just iterating once. use a Generator.
