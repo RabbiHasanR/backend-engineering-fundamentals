@@ -14,6 +14,7 @@ This guide provides a comprehensive overview of essential and advanced Python co
 ### Iteration & Generators
 - **Iterators**: Custom iteration with `__iter__` and `__next__`
 - **Generators**: `yield`, `next()`, generator expressions for memory efficiency
+- **itertools**: 
 
 ### Comprehensions
 - **List/Set/Dict comprehensions**: Concise syntax for data transformations
@@ -24,6 +25,7 @@ This guide provides a comprehensive overview of essential and advanced Python co
 - **Flexible Arguments**: `*args`, `**kwargs`
 - **Closures**: Functions retaining state
 - **First-class Functions**: Functions as objects
+- **functools**
 
 ### Decorators
 - Function and class-based decorators
