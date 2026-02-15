@@ -600,3 +600,13 @@ Usage: Ancestor relations underpin low-link computations, cycle checks, and tree
 This guide is designed for quick recall—visuals make concepts stick! If you'd like expansions like step-by-step traces for BFS queues, Dijkstra relaxations, Prim/Kruskal selections, or Kosaraju stack/transposes, let me know for interview-ready details.
 
 *Built with ❤️ for engineers navigating the graph jungle.*
+
+
+
+
+
+
+
+
+
+Floyd Warshall Algorithm: need to explain here

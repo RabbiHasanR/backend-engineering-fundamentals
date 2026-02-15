@@ -31,7 +31,52 @@ def add(a, b):
 print(add(5,3))
 
 
+# functions as first-class objects
+# Assigning a function to a variable
+def greet_two(n):
+    return f"Hello, {n}!"
+say_hi = greet_two  # Assign the greet function to say_hi
+print(say_hi("Alice")) 
 
+# passing a function as an argument
+def apply(f, v):
+    return f(v)
+res = apply(say_hi, "Bob")
+print(res)
+
+
+# Returning a function from another function
+def make_mult(f):
+    def mul(x):
+        return x * f
+    return mul
+
+dbl = make_mult(2)
+print(dbl(5))
+
+# higher order function
+# A higher-order function that takes another function as an argument
+def fun(f: function, x: int) -> function:
+    return f(x)
+# A simple function to pass
+def square(x: int) -> int:
+    return x * x
+res = fun(square, 5)  # Using apply_function to apply the square function
+print(res)
+
+# function decorators
+
+def simple_decorator(func):
+    def wrapper():
+        print(">>> Starting function")
+        func()
+        print(">>> Function finished")
+    return wrapper
+
+@simple_decorator
+def greet_three():
+    print("Hello, World!")
+greet_three()
 # Method Decorators
 
 def method_decorator(func):
@@ -141,3 +186,37 @@ def num2():
   
 print(num()) 
 print(num2())
+
+
+# class based decorators
+
+class UppercaseDecorator:
+    def __init__(self, function: callable[..., str]) -> None:
+        self.function: callable[..., str] = function
+    def __call__(self, *args: any, **kwds: any) -> str:
+        result = self.function(*args, **kwds)
+        return result.upper()
+
+@UppercaseDecorator    
+def greet() -> str:
+    return "hello there"
+
+print(greet())
+
+
+class CallCounter:
+    def __init__(self, function):
+        self.function = function
+        self.count = 0
+        
+    def __call__(self, *args, **kwds):
+        self.count += 1
+        print(f"Function {self.function.__name__} has been called {self.count} times.")
+        return self.function(*args, **kwds)
+
+@CallCounter
+def say_hello():
+    print("Hello!")
+    
+say_hello()
+say_hello()

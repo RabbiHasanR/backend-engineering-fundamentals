@@ -99,4 +99,63 @@ res = n ^ (1<<i)
 print(res)
 
 
-# remove the left set bit()
+# remove the last set bit(rightmost)
+n = 12
+
+# brute force approch. convert n to binary and find first 1 bit from right and make it 0. 
+
+# using bit manipulation
+
+res = n & n - 1
+print(res)
+
+
+# check is the number is a power of 2 or not
+n = 32
+
+# brute force approch. convert n to binary and count 1 bit if 1 bit count is 1 then this is power of 2 else not
+
+# using bit manipulation
+
+res = (n & n -1) == 0
+print(res)
+
+# count the number of set bits
+
+n = 13
+
+# brute force time O(logn)
+
+def countSetBit(n):
+    count = 0
+    
+    while n > 0:
+        if n % 2 == 0:
+            n = n // 2
+        else:
+            count += 1
+            n = n // 2
+    return count
+print(countSetBit(n))
+
+
+# bit manipulation
+
+def countSetBitOptimize(n):
+    count = 0
+    
+    while n > 0:
+        count += n & 1
+        n = n >> 1
+    return count
+print(countSetBitOptimize(n))
+# another approch
+
+def countSetBitAnother(n):
+    count = 0
+    while n != 0:
+        n = n & n - 1
+        count += 1
+    return count
+
+print(countSetBitAnother(n))
