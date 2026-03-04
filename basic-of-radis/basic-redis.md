@@ -229,3 +229,11 @@ In Redis sentinal or cluster scaling has common porblem is split brain problem. 
 
 
 
+
+
+
+
+
+# sync and async redis
+
+# redis streams

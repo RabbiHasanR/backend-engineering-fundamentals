@@ -371,7 +371,11 @@ PeriodicTask.objects.create(
 
 ### Q6: Difference between shared\_task and @app.task?
 
-**Answer**: `@shared_task` allows you to register a task without direct Celery app access. Useful in reusable apps.
+**Answer**: `@app.task` vs `@shared_task`
+@app.task directly ties your task to a specific Celery app instance. You have to import the app object into every tasks.py file across your project. This creates tight coupling — your task only works in that one project, and it can cause circular import problems as your project grows.
+@shared_task doesn't import the app at all. Instead it uses a proxy that asks at runtime "which Celery app is currently running?" and binds to that. This means your tasks are portable, cleaner, and easier to test.
+Simple analogy — @app.task is like a contractor who only works for one specific company and needs that company's ID card to do anything. @shared_task is a freelancer who works for whoever hired them that day, no specific ID needed.
+In Django projects, always use @shared_task by default. The only time you'd use @app.task is when you need very specific app-level configuration on that task, which is rare. The biggest practical benefit is avoiding circular imports — with @shared_task, your tasks.py files don't need to import from celery.py at all, which keeps your project structure clean.
 
 ### Q7: What are groups and chains in Celery?
 
