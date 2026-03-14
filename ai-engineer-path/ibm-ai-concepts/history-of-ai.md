@@ -640,5 +640,3 @@ The 1980s brought Expert Systems — promising but brittle. Then in 1997, IBM's 
 | ASI | Artificial Superintelligence — hypothetical AI far surpassing all human cognitive capabilities |
 
 ---
-
-*Notes generated from video transcript: "A Brief History of AI" (Part 1 of 2)*
