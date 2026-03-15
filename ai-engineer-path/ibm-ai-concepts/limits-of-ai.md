@@ -779,3 +779,7 @@ The video concludes with a partnership model: humans are best at setting the *wh
 | Human–AI Partnership | Framework where humans set purpose (what/why) and AI executes (how/do) |
 
 ---
+
+
+
+These are the limits of AI
