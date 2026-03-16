@@ -782,4 +782,4 @@ The video concludes with a partnership model: humans are best at setting the *wh
 
 
 
-These are the limits of AI
+These are the limits of AI. Learning ai limits
