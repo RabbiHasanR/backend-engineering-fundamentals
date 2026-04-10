@@ -13,3 +13,9 @@ multi stage jenkinsfile
  freestyle build(simplest method to create a build, feels like shell scripting)
 
  piplines(use the groovy syntax, use stages to break down components of builds)
+
+
+ cloud, node
+
+
+ what is instance capacity and remote file system in cloude agent template
