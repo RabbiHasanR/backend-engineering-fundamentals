@@ -19,3 +19,11 @@ multi stage jenkinsfile
 
 
  what is instance capacity and remote file system in cloude agent template
+
+
+ what is perametarize build freestyle build and pipline build 
+ what is post build
+ 
+
+
+ what is tools in jenkins? why do we need to use it
