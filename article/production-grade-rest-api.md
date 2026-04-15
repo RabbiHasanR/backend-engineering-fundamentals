@@ -88,7 +88,17 @@ POST /email-verifications
 POST /otp-verifications
 
 
-2. use correct http methods
+2. use correct http methods: HTTP methods define the action being performed. Using them correctly makes your API predictable and allows clients to understand what each request will do.
+    GET retrieves data: Use GET for read-only operations that don’t modify server state. GET requests should be safe to call repeatedly without side effects.GET requests are cacheable and can include query parameters for filtering, sorting, and pagination. Never use GET for operations that change data. But some scenario using GET request can update some column value when retrive something like you want to view count of eavrytime someone see details of product or post or articles.
+
+    POST creates new resources: Use POST when creating new resources or triggering actions that change server state. The server typically assigns the new resource’s identifier.
+
+    PUT updates or replaces resources: Use PUT for full updates of existing resources. PUT is idempotent, meaning multiple identical requests produce the same result.
+
+    PATCH makes partial updates: Use PATCH when you only need to modify specific fields without sending the entire resource. PATCH is particularly useful for large resources where sending the complete object would be inefficient.
+
+    DELETE removes resources: Use DELETE to remove resources from the server. Like PUT, DELETE should be idempotent.
+
 
 3. input and output validation must need
 
