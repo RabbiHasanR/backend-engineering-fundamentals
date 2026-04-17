@@ -196,7 +196,35 @@ The basic mental model 2xx means success, 4xx means the client did something wro
 Two distinctions that trip up most engineers: `401` vs `403` (not authenticated vs. not allowed) and `400` vs `422` (malformed request vs. valid request with bad data). Getting these two pairs right will put your API ahead of most production systems I've reviewed.
 
 
-6. use proper security 
+6. use proper security:  for production grade api security is critical. basically we use rest api for easy way to connect server and access to data on your server for single page app in a browser or mobile app on a phone. also give users both people and programers programmatic access to data and many services that can make up communication with your service. any api built for these reason can be abused by malicious or reckless attackers.Your app will need an access policy who can view or modify data on your server? For instance, only the author  of a blog post should be able to edit it, and readers should only be able to view it. If anyone could edit the post you’re reading, then we’d get vandals, link farmers, and others changing and deleting things willy nilly. Thats why security is most important things.
+
+Use HTTPS:
+SSL/TSL use for ecrypt all api traffic with https to protect authentication credentials and sensitive data in transit. HTTP transmits data in plain text, exposing it in middle so easy. so always use SSL/TSL.
+
+API keys:
+sometime we need to share api to public for use. but this api only can use who has api keys. basically when server to server communication then this simple authentication can use with api keys which passed in headers. Like when we want to use any google apis then first need to get api keys then we can use this apis. but here important things for this type api we always use in server end don't use in client or frontend if we use clinet or frontend then api kyes will expose and then anyone can use this api keys and it cause many problems like server crash, for paid api can over bill and insecure apis.
+
+Bearer tokens(OAUTH 2.0): we must use OAuth 2.0 in api security. because one user can not acess another user info. and also we need to limit access of resource for specific user or group. so for authentication and authorization we use bearer tokens OAuth 2.0. whihc is very important because don't all info in a system publically accessable.
+
+CORS: Also we need to limit which web applications from different domain can access your api. so for this we need to configure CORS headers to specify which origins can access your apis. Cross origin Resource Sharing(CORS) provied this type security. For public APIs, you might use a wildcard to allow all origins, but this reduces security. For private APIs, explicitly list allowed origins.
+
+
+Use proper security: For a production grade API, security is non-negotiable. A REST API is essentially a door to your server it lets single-page apps in the browser, mobile apps, and third-party services access and manipulate your data. Any API built for these purposes can and will be abused by malicious or reckless actors.
+
+Your API needs a clear access policy: who can view data, and who can modify it? For example, only the author of a blog post should be able to edit it, while readers should only be able to view it. Without this, anyone could edit or delete content and in production, they will. From my experience, security is not something you bolt on later. it's something you design from day one.
+
+**Use HTTPS:**
+Always encrypt all API traffic with HTTPS using SSL/TLS. HTTP transmits data in plain text, which means authentication credentials and sensitive data are fully exposed in transit anyone sitting in the middle can read everything. There is no valid reason to run a production API over plain HTTP.
+
+**API keys:**
+Sometimes you need to expose an API publicly, but restrict usage to authorized consumers. API keys are the simplest form of authentication the client passes a key in the request header, and the server validates it. This approach is common for server-to-server communication. For example, to use any Google API, you first obtain an API key, then include it with every request. One critical rule, never use API keys on the client side or frontend. If you embed a key in frontend code, it's exposed to anyone who inspects the source. This can lead to server abuse, excessive billing on paid APIs, and serious security vulnerabilities. API keys belong on the server always.
+
+**Bearer tokens (OAuth 2.0):**
+API keys alone don't solve a fundamental problem one user should never be able to access another user's data, and different users or groups need different levels of access. This is where OAuth 2.0 with bearer tokens comes in. It handles both authentication (who is this user?) and authorization (what are they allowed to do?). In any real system, not all information is publicly accessible OAuth 2.0 ensures that every request is scoped to the right user with the right permissions.
+
+**CORS:**
+You also need to control which web applications from different domains can access your API. Cross-Origin Resource Sharing (CORS) lets you configure exactly which origins are allowed. For public APIs, you might use a wildcard to allow all origins, but this weakens security. For private or internal APIs, always explicitly list the allowed origins. Misconfigured CORS is one of those silent issues that doesn't break anything during development but opens a wide door in production.
+
 
 7. Observe log, monitor api usages
 
