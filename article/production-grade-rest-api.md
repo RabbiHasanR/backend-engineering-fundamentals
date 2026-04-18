@@ -226,9 +226,9 @@ API keys alone don't solve a fundamental problem one user should never be able t
 You also need to control which web applications from different domains can access your API. Cross-Origin Resource Sharing (CORS) lets you configure exactly which origins are allowed. For public APIs, you might use a wildcard to allow all origins, but this weakens security. For private or internal APIs, always explicitly list the allowed origins. Misconfigured CORS is one of those silent issues that doesn't break anything during development but opens a wide door in production.
 
 
-7. Observe log, monitor api usages
+7. Observe log, monitor api usages: why do we need api observe and monitor with real system example. differenc between observer and monitor. observe and monitor technique. which problem solve with observer and monitor. why are these very important in rest api.
 
-8. Versioning
+8. Versioning: URI versioning, header versioning, params versioning. when do you need to versioning?
 
 9. Provide comprehensive documentation 
 
