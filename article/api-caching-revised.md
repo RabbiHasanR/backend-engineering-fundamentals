@@ -87,43 +87,21 @@ Before jumping into implementation, there are a few important questions every ba
 
 ### Is It Safe to Cache This Data?
 
-Not all data is safe to cache. The same piece of information can be fine to cache in one place and dangerous in another. Think about an online store, on the checkout page, the price must be exactly correct serving an old cached price could charge the customer the wrong amount. But on the product listing page, a price that's a few minutes old is perfectly fine.
+Not all data is safe to cache. The same piece of information can be fine to cache in one place and dangerous in another. On the checkout page, the price must be exactly correct serving an old cached price could charge the customer the wrong amount. But on the product listing page, a price that's a few minutes old is perfectly fine.
 
-The rule is simple: cache data that is read often but rarely changes, like user profiles, product catalogs, and config settings. And never treat the cache as the only place your data lives caches can disappear or expire at any time, so the real source of truth must always be a permanent store like a database.
+The rule is simple: cache data that is read often but rarely changes, like user profiles, product catalogs, and config settings. And never treat the cache as the only place your data lives the source of truth must always be a permanent store like a database.
 
 ### Is Caching Effective for This Data?
 
-Even when caching is safe, it's not always useful. Caching only helps when the same data is requested again and again. If your app reads thousands of different rows from a huge database and those rows keep changing, caching won't help much you'll rarely ask for the same row twice, and what you do cache will go stale quickly. Application layer caching works best when the same data is requested repeatedly within a short time window.
+Even when caching is safe, it's not always useful. Caching only helps when the same data is requested again and again within a short time window. If your app reads thousands of different rows that keep changing, you'll rarely ask for the same row twice and what you do cache will go stale quickly so caching won't help much.
 
 ### Is the Data Structured Well for Caching?
 
-Sometimes caching a single database record is enough. But often it's smarter to cache data in a combined form for example, a user record together with their order history as one ready to use object, so your app doesn't have to join them every time.
-
-Also, since caches are key value stores, each piece of data is saved under a specific key. If your app needs to look up the same data in different ways like by user ID and by email you may need to store it under multiple keys.
-
-### How Should You Load Data Into the Cache?
-
-Two common approaches. With lazy loading, data is cached only when it's requested for the first time. All future requests come straight from the cache. This works well when you don't know in advance what will be needed. With seeding at startup, you fill the cache when the app starts good for static data or heavy computed results that are always needed.
-
-For data that changes very fast and isn't critical (like view counts or trending scores), you can even store it directly in the cache and skip the database trading durability for speed.
-
-### How Do You Handle Concurrency?
-
-When many users update the same cached data at once, you need a strategy to avoid wrong data or lost updates. The optimistic approach assumes collisions are rare before writing, you check whether the data has changed. if not, the write goes through. It's fast and great for low conflict cases. The pessimistic approach locks the data during an update so no one else can touch it. It prevents all conflicts but slows things down, so use it only for short, high-collision operations.
-
-### How Do You Maintain Consistency?
-
-Distributed caches like Redis prioritize availability over strong consistency they don't guarantee every instance sees the very latest value. For most data, this is fine. But for information that must be accurate like checkout prices or stock availability use very short TTLs or skip the cache and go straight to the database.
-
-### What About Availability and Scale?
-
-Caches can fail a Redis server might crash, or the cache might be cold after a restart. Your app should always fall back to the original data store if the cache is unavailable.
-
-For best results, combine a private cache (fast, local to each instance) with a shared cache (slower, but consistent across instances). To scale further, use sharding (splitting data across servers), clustering (running multiple cache servers as a group), and replication (keeping copies for safety).
+Caches are key value stores, so the shape of your keys and values matters. Often it's smarter to cache data in a combined form for example, a user record together with their order history as one ready to use object so your app doesn't have to join them every time. And if you need to look up the same data in different ways (by user ID and by email), you may need to store it under multiple keys.
 
 ### What About Security?
 
-A cache often holds sensitive information user profiles, session tokens, API responses so treat it like any other important data store. Use authentication so only trusted services can read or write. For finer control, partition the cache so services only see their own data, or encrypt sensitive fields. And always use SSL/TLS when the cache is accessed over a network, especially a public one.
+A cache often holds sensitive information user profiles, session tokens, API responses so treat it like any other important data store. Use authentication, encrypt sensitive fields, and always use SSL/TLS when the cache is accessed over a network.
 
 
 ---
@@ -134,15 +112,15 @@ Application layer caching brings huge benefits, but it also comes with its own s
 
 ### Cache Invalidation and Stale Data
 
-Knowing when to refresh or throw away cached data is famously one of the hardest problems in computer science. The tricky part is this: when the real data in the database changes, how do we make sure every cached copy gets updated too? If invalidation isn't handled properly, users end up seeing outdated information for example, an "In Stock" label on a product that already sold out.
+Knowing when to refresh or throw away cached data is one of the hardest problems in cache. The tricky part is this: when the real data in the database changes, how do we make sure every cached copy gets updated too? If invalidation isn't handled properly, users end up seeing outdated information for example, an In Stock label on a product that already sold out.
 
 To solve this, we can pair TTLs with event driven invalidation. Whenever data changes in the database, the system publishes an event usually through a message queue that tells all application instances to refresh or remove the affected keys. For data that changes very often, just keep the TTL short so the cache naturally stays fresh. And for really critical reads like checking inventory during checkout you can skip the cache entirely and go straight to the database.
 
 ### Cache Penetration
 
-Sometimes users (or bots) repeatedly ask for data that doesn't exist. Since there's nothing to cache, every request slips past the cache and slams straight into the database. A common attack pattern is bots hitting an API with random invalid IDs so every single request becomes a cache miss.
+Sometimes users or bots repeatedly ask for data that doesn't exist. Since there's nothing to cache, every request slips past the cache and slams straight into the database. A common attack pattern is bots hitting an API with random invalid IDs so every single request becomes a cache miss.
 
-The fix is a negative result cache instead of caching only real data, we also cache the fact that a key doesn't exist (for a short time). That way, the next time someone asks for the same invalid key, the answer comes from the cache instead of hitting the database.
+The fix is a negative result cache instead of caching only real data, we also cache the fact that a key doesn't exist for a short time. That way, the next time someone asks for the same invalid key, the answer comes from the cache instead of hitting the database.
 
 ### Cache Avalanche
 
@@ -159,15 +137,15 @@ Application layer caching isn't just one thing. Depending on what you're caching
 
 ### Data Caching
 
-This is the most common type storing frequently read, rarely changed data directly in memory to avoid repeated database hits. Things like product listings, user profiles, configuration settings, and API responses are perfect candidates. TTLs are usually tuned based on how often the data changes: a few seconds for live feeds, a few minutes for listings, and hours or even days for static config.
+This is the most common type storing frequently read, rarely changed data directly in memory to avoid repeated database hits. Things like product listings, user profiles, configuration settings, and API responses are perfect candidates for this type caching.
 
 ### Computation Caching
 
-Some operations are expensive aggregations, analytics reports, machine learning predictions, or anything that takes significant CPU time. Instead of re running these heavy calculations for the same inputs every time, you cache the result. The next time the same request comes in, you return the pre computed answer instantly. This is a huge win for dashboards, recommendation systems, and report generation.
+Some operations are expensive aggregations, analytics reports, machine learning predictions, or anything that takes significant CPU time. Instead of re running these heavy calculations for the same inputs every time, you cache the result. In dashboards, recommendation systems, and report generation system use this type caching.
 
 ### Session Caching
 
-When a user logs in, their session data authentication token, preferences, shopping cart needs to be available across every request they make. Storing this in memory (often in Redis) keeps login state fast and avoids hitting the database on every single page load. This is essential for any app with user accounts.
+When a user logs in, their session data authentication token, preferences, shopping cart needs to be available across every request they make. Storing this in memory or Redis keeps login state fast and avoids hitting the database on every single page load. This is essential for any app with user accounts.
 
 ### Rate Limiting
 
@@ -177,28 +155,30 @@ Caches are also great for tracking how many requests a user or API client has ma
 
 ## Caching Design Patterns
 
-Once you decide to cache, the next question is how the cache and database should work together. There are several well known patterns, each with its own trade offs. Picking the right one depends on your read/write ratio, how fresh the data needs to be, and how much complexity you can afford.
+Once you decide to cache, the next question is how the cache and database should work together. There are several well known patterns, each with its own trade offs. Picking the right one depends on your specific requirments, read/write ratio, how fresh the data needs to be, and how much complexity you can afford.
 
 ---
 
-<img src="cache_aside.png" alt="Alt text" width="600">
+<img src="lazy_caching.png" alt="Alt text" width="600">
 
 ### 1. Lazy Caching (Cache Aside)
 
-Lazy caching is the most common pattern in backend systems it's so common that most engineers think of it as the way to cache. In this pattern, the application manages the cache directly, and data is loaded into the cache only when it's actually requested. That's why it's called lazy nothing is cached until someone asks for it.
+Lazy caching is the most common pattern in backend systems. In this pattern, the application manages the cache directly, and data is loaded into the cache only when it's actually requested. That's why it's called lazy nothing is cached until someone asks for it.
 
 The workflow is simple. Say the app receives a request for the top 10 news stories. It first checks the cache. If the data is there a cache hit, it returns it right away. If not a cache miss, the app queries the database, stores the result in the cache, and returns it. The next request for the same data will hit the cache and skip the database entirely.
 
 This pattern works beautifully when data is read often but written rarely. user profiles, product catalogs, news feeds, and similar. A user profile might only be updated a few times a year, but it could be read hundreds of times a day, which is a perfect fit for lazy caching.
 
 The big advantage here is memory efficiency only data that's actually requested ends up in the cache. It's also simple to implement, and if the cache fails, the app just falls back to the database.
-The downside is that the first request for any item is slow since it has to go all the way to the database. You also need to handle invalidation yourself when the underlying data changes. One more thing to watch out for in high-traffic systems if many requests hit the same missing key at the same time, they'll all rush to the database at once. This is usually solved with distributed locks or single flight patterns that ensure only one request fetches the data while the others wait.
+The downside is that the first request for any item is slow since it has to go all the way to the database. You also need to handle invalidation yourself when the underlying data changes. One more thing to watch out for in high traffic systems if many requests hit the same missing key at the same time, they'll all rush to the database at once. This is usually solved with distributed locks or single flight patterns that ensure only one request fetches the data while the others wait.
 
 ---
 
+<img src="writh_through.png" alt="Alt text" width="600">
+
 ### 2. Write Through
 
-Write through flips the focus from reads to writes. Every time data is written, it's applied to both the cache and the database at the same time. This keeps the cache perfectly in sync with the database. there's never a moment where the cache holds stale data.
+Write through use in writes heavy system. Every time data is written, it's applied to both the cache and the database at the same time. This keeps the cache perfectly in sync with the database. there's never a moment where the cache holds stale data.
 
 The workflow is straightforward. When the app writes something, the write goes to the cache and the database together in a single operation. On future reads, the cache always has the latest value, so reads are fast and always accurate.
 
@@ -228,17 +208,17 @@ The workflow is fast by design. The app writes to the cache, the cache acknowled
 
 Use this pattern when write throughput is critical and you can tolerate a small risk of data loss. It's a great fit for workloads like logging, analytics events, counters, or metrics anything high volume where the exact moment of database persistence doesn't really matter.
 
-The benefit is obvious writes are extremely fast because the database isn't in the critical path, and batching reduces database load dramatically. The risk is equally obvious: if the cache crashes before flushing its pending writes, that data is gone. Because of this, write behind usually needs durable queues, replication, or a write ahead log to make it safe in production.
+The benefit is obvious writes are extremely fast because the database does not use initially, and batching reduces database load dramatically. The risk is, if the cache crashes before flushing its pending writes, that data is gone. Because of this, write behind usually needs durable queues, replication, or a write ahead log to make it safe in production.
 
 ---
 
 ### 5. Hybrid (Lazy Caching + Write-Through)
 
-Most real production systems don't stick to a single pattern — they combine them. The **hybrid** pattern uses lazy caching for reads and write through for writes. Reads load data into the cache on demand (cache aside), while writes update both the cache and the database together (write through).
+Most real production systems don't stick to a single pattern they combine them. The hybrid pattern uses lazy caching for reads and write through for writes. Reads load data into the cache on demand (cache aside), while writes update both the cache and the database together (write through).
 
-This gives you the best of both worlds. Reads are memory-efficient because only requested data lives in the cache, and writes keep the cache automatically fresh so there's never stale data after an update. It's especially useful for systems like e-commerce product pages where reads heavily dominate, but writes (like inventory or price updates) must reflect immediately.
+This gives you the best of both worlds. Reads are memory efficient because only requested data lives in the cache, and writes keep the cache automatically fresh so there's never stale data after an update. It's especially useful for systems like ecommerce product pages where reads heavily dominate, but writes like inventory or price updates must reflect immediately.
 
-The trade off is complexity you now have two patterns working together, so there's more to reason about. Writes are also still slower than pure cache aside since they have to update the cache and the database on every operation. But for balanced workloads with freshness requirements, hybrid is often the right call.
+The trade off is complexity you now have two patterns working together. Writes are also still slower than pure cache aside since they have to update the cache and the database on every operation. But for balanced workloads with freshness requirements, hybrid is often the right call.
 
 ---
 
@@ -260,7 +240,7 @@ In practice, most production systems use lazy caching (cache aside) as the defau
 
 
 
-## Cache Expiration and Eviction: The Two Levers That Control Everything
+## Cache Expiration and Eviction
 
 No matter which caching pattern you choose, two things ultimately decide whether your cache helps or hurts: when data expires and what gets thrown out when the cache fills up. Getting these two right is the difference between a cache that saves your database and a cache that silently serves stale data to your users.
 
@@ -294,7 +274,7 @@ Imagine a cache with a maximum size of 3 keys. Here's what happens as requests c
 | 4 | Read A | `[A, C, B]` | A is accessed, so it moves to the front. |
 | 5 | Read D | `[D, A, C]` | Cache is full B is evicted (least recently used). |
 
-Notice what happened in step 4: even though A was the oldest originally, accessing it moved it to the "most recently used" position. So when D came in and something had to be evicted, it was B the one that hadn't been touched the longest.
+Notice what happened in step 4: even though A was the oldest originally, accessing it moved it to the most recently used position. So when D came in and something had to be evicted, it was B the one that hadn't been touched the longest.
 
 LRU is a great default for most general purpose caches. It works especially well when users' access patterns follow a temporal pattern meaning if something was used recently, it's likely to be used again soon. Web page views, API responses, and session data all fit this pattern nicely.
 
@@ -325,13 +305,9 @@ Getting TTL and eviction right is what turns a basic cache into a production-gra
 
 ## Caching Technologies: Picking the Right Tool
 
-Once you understand the patterns and strategies, the last piece is choosing the right tool to actually build your cache. Application layer caches almost always fall under one category: in-memory key-value stores, which are a type of NoSQL database designed specifically for speed. The two most popular choices are Memcached and Redis.
+Application layer caches are almost always in-memory key-value stores. The two most popular choices are Memcached and Redis.
 
-Memcached is simple, fast, and extremely lightweight. It stores plain key value pairs in memory and focuses on doing one thing well caching. If you just need a basic, high-performance cache with minimal features, Memcached is a solid choice.
-
-Redis is the more popular option today because it offers much more than basic caching. Beyond simple key value storage, Redis supports rich data structures like lists, hashes, sets, and sorted sets, along with built in features like pub/sub messaging, persistence, replication, and clustering. This makes it useful not just for caching, but also for session storage, rate limiting, leaderboards, queues, and distributed coordination.
-
-When picking between them, the decision usually comes down to a few factors: how volatile your data is, whether you need a private or shared cache, how much traffic you expect, and what kind of workload you're running. Applications with frequently changing data benefit from tools with strong invalidation support (Redis has an edge here). High traffic, multi server systems almost always need a shared cache — and Redis Cluster or Memcached in distributed mode are the go to options. For small, single instance apps, an in process private cache (built into your language or framework) can be enough without pulling in an external service.
+Memcached is simple, lightweight, and does one thing well plain key-value caching. Redis is more powerful, with rich data structures (lists, hashes, sets, sorted sets) and built-in features like pub/sub, persistence, replication, and clustering useful not just for caching but also for session storage, rate limiting, leaderboards, and queues.
 
 In most modern backend systems, the answer is simple: start with Redis. It covers nearly every caching use case, scales well, and gives you room to grow into advanced patterns without switching tools later.
 
