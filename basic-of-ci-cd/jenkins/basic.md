@@ -4,6 +4,8 @@ pipline, agent, tools, environment, stages, steps
 
 agent types: permanent agents (dedicated servers for running jobs), Cloude agents(ephemeral/dynamic agents spin up on demand)
 
+options in jenkins
+
 one stage jenkinsfile
 
 multi stage jenkinsfile

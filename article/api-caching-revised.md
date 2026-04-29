@@ -188,6 +188,8 @@ The main benefit is that the cache is never stale, and reads are fast after the 
 
 ---
 
+<img src="read_through.png" alt="Alt text" width="600">
+
 ### 3. Read Through
 
 Read through looks a lot like lazy caching from the outside, but there's one key difference, the cache itself is responsible for fetching missing data from the database not the application. The application just asks the cache for data and trusts it to handle everything behind the scenes.
