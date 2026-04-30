@@ -14,7 +14,7 @@ Database cache: caches query results and frequently accessed rows to reduce disk
 
 Each layer has its own trade-offs, use cases, and challenges. However, in this article I'll focus exclusively on the application layer cache the layer where, in my experience, backend engineers have the most control and where thoughtful caching decisions can deliver the biggest performance gains.
 
-<img src="different-layer-cache.png" alt="Alt text" width="400">
+<img src="different-layer-cache.png" alt="Alt text" width="300">
 
 
 ## What is Application Layer Caching?
@@ -202,6 +202,8 @@ The upside is simpler application code no cache miss handling scattered across y
 
 ---
 
+<img src="write_behind.png" alt="Alt text" width="600">
+
 ### 4. Write Behind (Write Back)
 
 Write behind is the opposite of write through when it comes to speed. In this pattern, writes go to the cache immediately and return success right away. The cache then asynchronously flushes those writes to the database in the background usually in batches.
@@ -213,6 +215,9 @@ Use this pattern when write throughput is critical and you can tolerate a small 
 The benefit is obvious writes are extremely fast because the database does not use initially, and batching reduces database load dramatically. The risk is, if the cache crashes before flushing its pending writes, that data is gone. Because of this, write behind usually needs durable queues, replication, or a write ahead log to make it safe in production.
 
 ---
+
+
+<img src="lazy_caching.png" alt="Alt text" width="600">     <img src="writh_through.png" alt="Alt text" width="600">
 
 ### 5. Hybrid (Lazy Caching + Write-Through)
 
