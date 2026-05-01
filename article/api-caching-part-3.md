@@ -1,4 +1,4 @@
-# Application Layer Caching — Part 3: Expiration, Eviction, and Production Tuning
+# The Complete Guide to Application Layer Caching Part 3: Expiration, Eviction, and Production Tuning
 
 So far we've covered the **foundations** of application layer caching ([Part 1](#)) and the **design patterns** that decide how the cache and database work together ([Part 2](#)). But no matter which pattern you pick, two things ultimately decide whether your cache helps or hurts in production: **when data expires**, and **what gets thrown out when the cache fills up**.
 
