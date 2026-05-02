@@ -87,6 +87,6 @@ I hope this 3-part series gives you a solid foundation to build, debug, and reas
 
 ---
 
-*Catch up on the rest of the series:*
+Catch up on the rest of the series:
 - *[Part 1: Foundations](#)*
 - *[Part 2: Caching Design Patterns](#)*
