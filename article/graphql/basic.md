@@ -18,3 +18,38 @@ query ReviewsQuery {
 
 
 graphql mutations:
+
+
+
+graphql 5 scaler types: int, float, string, boolean, ID
+
+schema and types
+
+what is specila Query types in graphql
+
+
+
+
+resolver functions: 
+
+graphql related data
+
+
+graphql mutations(any kind of change in data like add,update,delete)
+
+
+
+
+
+
+
+
+
+
+
+
+Graphql introduction:
+
+new api standard that was invented & open sourced by facebook.
+it enables declaratative data fetching.
+graphql server exposes single endpoint and responds to queries
