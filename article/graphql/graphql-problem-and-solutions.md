@@ -11,10 +11,10 @@ But great power comes with great responsibility. The same flexibility that makes
 Look at this innocent-looking query:
 
 ```graphql
-query list_of_users {
-  users {
+query list_of_posts {
+  posts {
     id
-    displayName
+    title
   }
 }
 ```
@@ -23,13 +23,25 @@ If your `users` table has 1k rows, this returns 1k rows. If it has 1M rows, it r
 
 **What it causes in production:** the database has to read every row. The server holds all of them in memory to build the JSON. The response gets huge, bandwidth cost goes up, and the user stares at a frozen screen.
 
-**How I fixed it:** I use Relay-style cursor pagination with a fixed max `pageSize` on the server. The client cannot ask for more than the limit.
+**How I fixed it:** I pick the pagination style based on the resource. In my project, `posts` and `comments` use Relay-style cursor pagination with the `first`, `after`, `last`, and `before` arguments and an encoded cursor, because they grow fast and need stable ordering. `users` uses simple offset-based pagination (`page`, `pageSize`), because the list is small and admins want to jump to specific pages. In both cases I enforce a fixed max page size on the server — the client cannot ask for more than the limit. The query below shows the Relay cursor pagination shape used for `posts`:
 
 ```graphql
-query list_of_users {
-  users(page: 1, pageSize: 10) {
-    items { id email }
-    pageInfo { page totalPages totalItems hasNext }
+query list_of_posts {
+  posts(first: 5) {
+    totalCount
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    edges {
+      cursor
+      node {
+        id
+        title
+      }
+    }
   }
 }
 ```
