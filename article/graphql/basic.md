@@ -163,7 +163,7 @@ named query results with aliases
 in graphql has two types of data:
 
 scalar types: string, int, float, boolean, id
-boject types: any object like User/Post
+object types: any object like User/Post
 
 also in graphql you can use enums in schema
 
@@ -253,3 +253,130 @@ Query Complexity Cons
 Hard to implement perfectly.
 If complexity is estimated by developers, how do we keep it up to date? How do we find the costs in the first place?
 Mutations are hard to estimate. What if they have a side effect that is hard to measure, like queuing a background job?
+
+
+
+
+Throttling
+The solutions we’ve seen so far are great to stop abusive queries from taking your servers down. The problem with using them alone like this is that they will stop large queries, but won’t stop clients that are making a lot of medium sized queries!
+
+In most APIs, a simple throttle is used to stop clients from requesting resources too often. GraphQL is a bit special because throttling on the number of requests does not really help us. Even a few queries might be too much if they are very large.
+
+In fact, we have no idea what amount of requests is acceptable since they are defined by the clients. So what can we use to throttle clients?
+
+Throttling Based on Server Time
+A good estimate of how expensive a query is the server time it needs to complete. We can use this heuristic to throttle queries. With a good knowledge of your system, you can come up with a maximum server time a client can use over a certain time frame.
+
+We also decide on how much server time is added to a client over time. This is a classic leaky bucket algorithm. Note that there are other throttling algorithms out there, but they are out of scope for this chapter. We will use a leaky bucket throttle in the next examples.
+
+Let’s imagine our maximum server time (Bucket Size) allowed is set to 1000ms, that clients gain 100ms of server time per second (Leak Rate) and this mutation:
+
+mutation {
+  createPost(input: { title: "GraphQL Security" }) {
+    post {
+      title
+    }
+  }
+}
+takes on average 200ms to complete. In reality, the time may vary but we’ll assume it always takes 200ms to complete for the sake of this example.
+
+It means that a client calling this operation more than 5 times within 1 second would be blocked until more available server time is added to the client.
+
+After two seconds (100ms is added by second), our client could call the createPost a single time.
+
+As you can see, throttling based on time is a great way to throttle GraphQL queries since complex queries will end up consuming more time meaning you can call them less often, and smaller queries may be called more often since they will be very fast to compute.
+
+It can be good to express these throttling constraints to clients if your GraphQL API is public. In that case, server time is not always the easiest thing to express to clients, and clients cannot really estimate what time their queries will take without trying them first.
+
+Remember the Max Complexity we talked about earlier? What if we throttled based on that instead?
+
+Throttling Based on Query Complexity
+Throttling based on Query Complexity is a great way to work with clients and help them respect the limits of your schema.
+
+Let’s use the same complexity example we used in the Query Complexity section:
+
+query {
+  author(id: "abc") {    # complexity: 1
+    posts {              # complexity: 1
+      title              # complexity: 1
+    }
+  }
+}
+We know that this query has a cost 3 based on complexity. Just like a time throttle, we can come up with a maximum cost (Bucket Size) per time a client can use.
+
+With a maximum cost of 9, our clients could run this query only three times, before the leak rate forbids them to query more.
+
+The principles are the same as our time throttle, but now communicating these limits to clients is much nicer. Clients can even calculate the costs of their queries themselves without needing to estimate server time!
+
+
+
+
+
+
+
+
+Pagination on Graphql:
+
+offset based pagination
+curosr based pagination (rely)
+
+
+
+Caching in Graphql:
+client side caching
+server side caching 
+
+1. application layer (resolver layer, dataloader layer)
+2. using get request can cache in browser end, cdn end and cloudflare and webserver (nginx, apache etc.)
+
+Performance:
+
+client side caching
+
+get request for quries
+
+solve N + 1 problem
+
+Demand control query with control  paginating, query depth and query complexity analysis
+
+JSON (with GZIP)
+
+performance monitoring with opentelemetry
+
+
+
+Securtiy:
+
+transport layer security: when using HTTP for queries and mutations, you should use HTTPS to encrypt data, set appropriate timeout durations for requests, and, if using HTTP caching, ensure sensitive data is cached privately (or not at all).
+
+
+Demand control:
+
+Trusted documents: 
+
+paginated fields: A first step toward implementing demand control for a GraphQL API is limiting the amount of data that can be queried from a single field. When a field outputs a List type and the resulting list could potentially return a lot of data, it should be paginated to limit the maximum number of items that may be returned in a single request. if not limit then if anyone try to fetch 1k or 10k row a singl query then databased can be crash and if it will dos attach then database crash confirm.
+
+
+Depth limiting: One of GraphQL’s strengths is that clients can write expressive operations that reflect the relationships between the data exposed in the API. However, some queries may become cyclical when the fields in the selection set are deeply nested: Even when the N+1 problem has been remediated through batched requests to underlying data sources, overly nested fields may still place excessive load on server resources and impact API performance. For this reason, it’s a good idea to limit the maximum depth of fields that a single operation can have. 
+
+
+Breadth and batch limiting: 
+
+
+Rete limiting:
+
+Query Complexity analysis:
+
+Rate limiting + query complexity: using leak bucket algorithm we can use rate limiting and query complexity .
+
+
+Schema considerations:
+
+validating and sanitizing argument values:
+
+introspection:
+
+Error messages:
+
+
+Authentication and authorization:
