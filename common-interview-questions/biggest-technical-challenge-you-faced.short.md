@@ -1,20 +1,19 @@
-# Biggest Technical Challenge — Spoken Version (~3 minutes)
+# Biggest Technical Challenge I Faced
 
-## Hook
+
 
 The biggest technical challenge I've faced recently was rewriting a failing production WebSocket service, solo, in one month, while our company's first release was on the line.
 
-## Context (2 sentences)
+ 
 
 I work at a sports-tech company that runs a real-time scoring platform for cricket, football, and baseball. Live score updates, notifications, and stream sync are the core product — if real-time breaks, the product breaks.
 
-## The Problem
 
 During our pilot, the existing WebSocket service — built on Django, Django Channels, and Redis — couldn't reliably hold even 300 to 500 concurrent users. Connections were dropping constantly, and we had zero observability, so nobody could explain why.
 
 The original developers were gone, the rest of the team was committed to other services, and management had already planned the release right after the pilot. The pilot had to be paused, which made it very visible. I was assigned to fix it alone, with a one-month deadline.
 
-## Diagnosis
+
 
 I mapped the system end-to-end and found four main issues:
 
@@ -25,7 +24,7 @@ I mapped the system end-to-end and found four main issues:
 
 On top of that, there was no monitoring at all, so debugging was guesswork.
 
-## Decision
+
 
 I decided to rewrite the service instead of patching it. Four key choices:
 
@@ -36,10 +35,9 @@ I decided to rewrite the service instead of patching it. Four key choices:
 
 I also fixed the timeout chain across Cloudflare, Nginx, and the app layer, and added periodic ping/pong to keep idle connections alive.
 
-## Result
+
 
 On the exact same EC2 t2.small instance, concurrent capacity went from around 500 unstable connections to over 3,000 stable ones. The pilot resumed, the release moved forward, and the whole rewrite shipped in one month.
 
-## Lesson
 
 The biggest takeaway — and honestly the previous team's biggest mistake — was that the service was never load-tested before the pilot. If even a basic load test had been run earlier, almost every issue I had to fix would have surfaced weeks before, in a far cheaper environment. Since then, I treat load testing as a mandatory gate, not an afterthought.
