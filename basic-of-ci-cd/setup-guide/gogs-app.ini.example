@@ -1,0 +1,92 @@
+# ============================================================
+# Example Gogs app.ini for CI/CD with Jenkins
+# ============================================================
+# This is a reference config showing the sections relevant to
+# the Jenkins + Gogs CI/CD pipeline described in
+# ci-cd-pipline-setup-with-jenkins-gogs.md
+#
+# Path on the Gogs server: custom/conf/app.ini
+# After editing: sudo systemctl restart gogs
+# ============================================================
+
+BRAND_NAME = Gogs
+RUN_USER   = agl
+RUN_MODE   = prod
+
+[database]
+TYPE     = sqlite3
+HOST     = 127.0.0.1:5432
+NAME     = gogs
+USER     = gogs
+PASSWORD =
+SSL_MODE = disable
+PATH     = data/gogs.db
+
+[repository]
+ROOT               = /home/agl/Downloads/gogs/repositories/gogs-repositories
+MAX_SIZE           = 5000
+MAX_REPO_FILE_SIZE = 2000
+ENABLE_CACHE       = true
+
+[server]
+DOMAIN           = a.example.com
+HTTP_ADDR        = 0.0.0.0
+HTTP_PORT        = 3000
+EXTERNAL_URL     = https://a.example.com/
+LOCAL_ROOT_URL   = http://0.0.0.0:3000/
+DISABLE_SSH      = false
+SSH_PORT         = 22
+START_SSH_SERVER = false
+OFFLINE_MODE     = true
+
+LFS_START_SERVER = true
+LFS_CONTENT_PATH = /home/agl/Downloads/gogs/data/lfs
+LFS_JWT_SECRET   = <replace-with-random-secret>
+
+# Allow webhook delivery to private network addresses (Jenkins EC2)
+ALLOWED_LOCAL_NETWORK_ADDRESSES = *
+
+# ----- Git tuning to prevent OOM during large clones -----
+[git]
+MAX_GIT_DIFF_LINES           = 1000
+MAX_GIT_DIFF_LINE_CHARACTERS = 5000
+MAX_GIT_DIFF_FILES           = 100
+COMMAND_TIMEOUT              = 1200
+PACK_WINDOW_MEMORY           = 256m
+PACK_COMPRESSION_LEVEL       = 1
+PACK_DEPTH                   = 10
+
+[mailer]
+ENABLED = false
+
+[auth]
+REQUIRE_EMAIL_CONFIRMATION  = false
+DISABLE_REGISTRATION        = false
+ENABLE_REGISTRATION_CAPTCHA = true
+REQUIRE_SIGNIN_VIEW         = true
+
+[user]
+ENABLE_EMAIL_NOTIFICATION = false
+
+[picture]
+DISABLE_GRAVATAR        = true
+ENABLE_FEDERATED_AVATAR = false
+
+[session]
+PROVIDER = file
+
+[log]
+MODE      = console, file
+LEVEL     = Info
+ROOT_PATH = /home/agl/Downloads/gogs-log/log
+
+[security]
+INSTALL_LOCK = true
+SECRET_KEY   = <replace-with-random-secret>
+# Allow webhook delivery to the Jenkins EC2 private IP
+LOCAL_NETWORK_ALLOWLIST = 172.31.30.102
+
+# ----- Required for CI/CD: webhook delivery settings -----
+[webhook]
+DELIVER_TIMEOUT = 30
+SKIP_TLS_VERIFY = false
