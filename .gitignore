@@ -1,0 +1,7 @@
+# ============================================================
+# Site-specific files (kept local, shared only via *.template)
+# ============================================================
+# The real Jenkinsfile contains private IPs, internal domains,
+# and infrastructure paths. Only the sanitized .template version
+# is committed.
+basic-of-ci-cd/setup-guide/Jenkinsfile.promote.to.live

@@ -1,0 +1,798 @@
+// ============================================================
+// Jenkinsfile — Promote to Live  (SANITIZED TEMPLATE)
+// ============================================================
+// Public, shareable template version of the Promote-to-Live job.
+// All site-specific values are placeholders like <THIS>.
+//
+// To use this template:
+//   1. Copy to Jenkinsfile.promote.to.live (kept out of git via .gitignore).
+//   2. Replace every <PLACEHOLDER> with your real value.
+//   3. Paste the resulting script into the Jenkins Pipeline job.
+//
+// Placeholders used in this file:
+//   <GOGS_PRIVATE_IP>            internal Gogs server IP (e.g. 10.0.1.10)
+//   <LIVE_API_PRIVATE_IP>        live API EC2 private IP
+//   <LIVE_FRONTEND_PRIVATE_IP>   live frontend EC2 private IP
+//   <GOGS_OWNER>                 Gogs user/org that owns the repos
+//   <API_REPO_NAME>              backend repo name in Gogs
+//   <FRONTEND_REPO_NAME>         frontend repo name in Gogs
+//   <API_SERVICE_KEY>            short key for the API service (e.g. my-api)
+//   <FRONTEND_SERVICE_KEY>       short key for the frontend service
+//   <APP_DIR>                    backend project directory on live EC2
+//   <FRONTEND_DIR>               frontend project directory on live EC2
+//   <SYSTEMD_UNIT_NAME>          backend systemd unit (without .service)
+//   <UNIX_SOCKET_PATH>           gunicorn unix socket path
+//   <BACKUP_DIR>                 dir for pre-migration DB backups
+//   <ENV_FILE_CRED_ID>           Jenkins file-credential ID for .env
+//   <DEPLOY_BOT_NAME>            git author name for promote merge commits
+//   <DEPLOY_BOT_EMAIL>           git author email for promote merge commits
+//
+// Jenkins credential IDs referenced by name (set them up first):
+//   gogs-repo-credentials   username/password for Gogs (write access)
+//   live-ec2-ssh-key        SSH private key for live EC2s
+//   <ENV_FILE_CRED_ID>      secret file: production .env for the backend
+// ============================================================
+
+pipeline {
+    agent any
+
+    parameters {
+        choice(
+            name: 'SERVICE',
+            choices: [
+                '<API_SERVICE_KEY>',
+                '<FRONTEND_SERVICE_KEY>',
+                // ← Add more services here as needed
+            ],
+            description: 'Select the service to deploy to LIVE'
+        )
+    }
+
+    environment {
+        // ---- Gogs merge credentials ----
+        GOGS_URL       = 'http://<GOGS_PRIVATE_IP>:3000'        // internal Gogs IP (no public domain)
+        GOGS_ORG       = '<GOGS_OWNER>'                          // ← CHANGE: owner segment in Gogs URL (user or org name)
+        GOGS_CRED_ID   = 'gogs-repo-credentials'            // Jenkins credential ID — must have write/merge access
+    }
+
+    options {
+        timestamps()
+        timeout(time: 25, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '30', daysToKeepStr: '60'))
+        // Per-service lock — two promotes of the SAME service serialize,
+        // but different services (fastapi + ember) can run in parallel.
+        // Requires the Lockable Resources Plugin (install via Manage Plugins).
+        lock(resource: "promote-to-live-${params.SERVICE}")
+    }
+
+    stages {
+
+        // ============================================================
+        // STAGE 1: Load service configuration
+        // ============================================================
+        stage('Load Config') {
+            steps {
+                script {
+                    // ========================================================
+                    // SERVICE CONFIGS
+                    // ========================================================
+                    // Each service defines everything needed for live deploy.
+                    // Copy the structure to add new services.
+                    //
+                    // Fields:
+                    //   repo        Gogs repo name
+                    //   type        fastapi | ember  (add django/react/node blocks when needed)
+                    //   server      Live EC2 private IP
+                    //   sshUser     SSH user on that EC2 (ubuntu, ec2-user, etc.)
+                    //   sshKey      Jenkins credential ID for SSH private key
+                    //   dir         Project directory on live EC2
+                    //   venv        Virtualenv path (empty if not python)
+                    //   unit        Systemd service name (empty for static frontend)
+                    //   port        Service port (empty for frontend)
+                    //   health      Health check path
+                    //   socket      Unix socket path (empty if using TCP port)
+                    //   branch      Branch to pull on live (usually 'main')
+                    //   envFileId   Jenkins credential ID for .env file (empty to skip)
+                    //   gogsRepoCred  Jenkins credential ID for git credentials on server
+                    //   gogsRepoUrl   Internal Gogs URL for git operations on server
+                    //   deployTarget  DEPLOY_TARGET env var for frontend builds (empty if not needed)
+                    //   extraStages   List of extra post-deploy steps (e.g., SQL sync)
+                    // ========================================================
+
+                    def configs = [
+
+                        '<API_SERVICE_KEY>': [
+                            repo:           '<API_REPO_NAME>',
+                            type:           'fastapi',
+                            server:         '<LIVE_API_PRIVATE_IP>',
+                            sshUser:        'ec2-user',
+                            sshKey:         'live-ec2-ssh-key',
+                            dir:            '<APP_DIR>',
+                            venv:           '<APP_DIR>/venv',
+                            unit:           '<SYSTEMD_UNIT_NAME>.service',
+                            port:           '',                                 // unused — service is on unix socket
+                            health:         '/health',
+                            socket:         '<UNIX_SOCKET_PATH>',      // unix socket (http://unix:<UNIX_SOCKET_PATH>)
+                            branch:         'master',
+                            envFileId:      '<ENV_FILE_CRED_ID>',            // ← CHANGE (or empty to skip)
+                            gogsRepoCred:   'gogs-repo-credentials',
+                            gogsRepoUrl:    'http://<GOGS_PRIVATE_IP>:3000',         // ← CHANGE: internal Gogs URL
+                            deployTarget:   '',
+                            extraStages:    ['sql-sync'],                       // post-deploy steps
+                        ],
+
+                        '<FRONTEND_SERVICE_KEY>': [
+                            repo:           '<FRONTEND_REPO_NAME>', // ← CHANGE
+                            type:           'ember',
+                            server:         '<LIVE_FRONTEND_PRIVATE_IP>',                         // ← CHANGE: live EC2 IP
+                            sshUser:        'ec2-user',                             // ← CHANGE
+                            sshKey:         'live-ec2-ssh-key',                   // ← CHANGE
+                            dir:            '<FRONTEND_DIR>',         // ← CHANGE: live directory
+                            venv:           '',
+                            unit:           '',
+                            port:           '',
+                            health:         '/',
+                            socket:         '',
+                            branch:         'master',
+                            envFileId:      '',
+                            gogsRepoCred:   'gogs-repo-credentials',
+                            gogsRepoUrl:    'http://<GOGS_PRIVATE_IP>:3000',           // ← CHANGE
+                            deployTarget:   'production',                          // DEPLOY_TARGET for ember build
+                            extraStages:    [],
+                        ],
+
+                        // ---- ADD MORE SERVICES ----
+                        // 'another-service': [
+                        //     repo: '...', type: 'django', server: '...', sshUser: '...',
+                        //     sshKey: '...', dir: '...', venv: '...', unit: '...', port: '...',
+                        //     health: '...', socket: '', branch: 'main', envFileId: '',
+                        //     gogsRepoCred: 'gogs-repo-credentials', gogsRepoUrl: '...',
+                        //     deployTarget: '', extraStages: [],
+                        // ],
+                    ]
+
+                    def cfg = configs[params.SERVICE]
+                    if (!cfg) {
+                        error "Unknown service: ${params.SERVICE}. Add it to the configs map."
+                    }
+
+                    env.REPO_NAME      = cfg.repo
+                    env.SERVICE_TYPE   = cfg.type
+                    env.LIVE_SERVER    = cfg.server
+                    env.SSH_USER       = cfg.sshUser
+                    env.SSH_KEY_ID     = cfg.sshKey
+                    env.SERVICE_DIR    = cfg.dir
+                    env.VENV_PATH      = cfg.venv ?: ''
+                    env.SYSTEMD_UNIT   = cfg.unit ?: ''
+                    env.SERVICE_PORT   = cfg.port ?: ''
+                    env.HEALTH_PATH    = cfg.health
+                    env.SOCKET_PATH    = cfg.socket ?: ''
+                    env.LIVE_BRANCH    = cfg.branch
+                    env.ENV_FILE_ID    = cfg.envFileId ?: ''
+                    env.GOGS_REPO_CRED = cfg.gogsRepoCred ?: ''
+                    env.GOGS_REPO_URL  = cfg.gogsRepoUrl ?: ''
+                    env.DEPLOY_TARGET  = cfg.deployTarget ?: ''
+                    env.EXTRA_STAGES   = (cfg.extraStages ?: []).join(',')
+
+                    echo "=========================================="
+                    echo "  PROMOTE TO LIVE"
+                    echo "  Service:  ${params.SERVICE}"
+                    echo "  Type:     ${env.SERVICE_TYPE}"
+                    echo "  Server:   ${env.SSH_USER}@${env.LIVE_SERVER}"
+                    echo "  Dir:      ${env.SERVICE_DIR}"
+                    echo "  Branch:   ${env.LIVE_BRANCH}"
+                    echo "  SSH Key:  ${env.SSH_KEY_ID}"
+                    echo "=========================================="
+                }
+            }
+        }
+
+        // ============================================================
+        // STAGE 2: Confirmation
+        // ============================================================
+        stage('Confirm') {
+            steps {
+                input message: """Deploy ${params.SERVICE} to LIVE?
+
+Server:  ${env.SSH_USER}@${env.LIVE_SERVER}
+Dir:     ${env.SERVICE_DIR}
+Type:    ${env.SERVICE_TYPE}
+
+This will merge test → ${env.LIVE_BRANCH} and deploy.""",
+                      ok: 'Yes, deploy to LIVE'
+            }
+        }
+
+        // ============================================================
+        // STAGE 3: Merge test → main in Gogs
+        // ============================================================
+        stage('Merge to Main') {
+            when {
+                // Ember does promotion-gate merge inside the Deploy stage
+                // (local merge → build → ship → health-check → push). Skip here.
+                expression { env.SERVICE_TYPE != 'ember' }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: env.GOGS_CRED_ID,
+                    usernameVariable: 'BOT_USER',
+                    passwordVariable: 'BOT_PASS'
+                )]) {
+                    script {
+                        echo "Merging test → ${env.LIVE_BRANCH} for ${env.REPO_NAME}..."
+
+                        def response = sh(
+                            script: """
+                                curl -sf -w "\\n%{http_code}" \
+                                    -X POST "${env.GOGS_URL}/api/v1/repos/${env.GOGS_ORG}/${env.REPO_NAME}/merges" \
+                                    -u "\${BOT_USER}:\${BOT_PASS}" \
+                                    -H "Content-Type: application/json" \
+                                    -d '{"base": "${env.LIVE_BRANCH}", "head": "test"}' 2>&1 || echo "000"
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        def lines = response.split('\n')
+                        def httpCode = lines[-1].trim()
+
+                        echo "Gogs API response: HTTP ${httpCode}"
+
+                        if (httpCode == '200' || httpCode == '201' || httpCode == '204') {
+                            echo "Merge successful via API!"
+                            env.MERGE_VIA_GIT = 'false'
+                        } else if (httpCode == '409') {
+                            error "MERGE CONFLICT: test and ${env.LIVE_BRANCH} have conflicts. Resolve manually in Gogs before retrying."
+                        } else {
+                            echo "API merge returned HTTP ${httpCode}. Falling back to git merge on server."
+                            env.MERGE_VIA_GIT = 'true'
+                        }
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // STAGE 3b: Fallback — merge via git on live server
+        // ============================================================
+        stage('Merge via Git') {
+            when {
+                allOf {
+                    expression { env.MERGE_VIA_GIT == 'true' }
+                    expression { env.SERVICE_TYPE != 'ember' }
+                }
+            }
+            steps {
+                sshagent(credentials: [env.SSH_KEY_ID]) {
+                    withCredentials([usernamePassword(
+                        credentialsId: env.GOGS_REPO_CRED,
+                        usernameVariable: 'GOGS_USER',
+                        passwordVariable: 'GOGS_PASS'
+                    )]) {
+                        // ---- Bootstrap git credentials on live server (idempotent) ----
+                        sh """
+                            printf '%s\\n' "${env.GOGS_REPO_URL}" \
+                                | sed "s|http://|http://\${GOGS_USER}:\${GOGS_PASS}@|" \
+                                | ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                    "${env.SSH_USER}@${env.LIVE_SERVER}" \
+                                    'umask 077 && cat > ~/.git-credentials && chmod 600 ~/.git-credentials && git config --global credential.helper store'
+                        """
+
+                        // ---- Perform the merge via git on the live server ----
+                        sh """
+                            ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                ${env.SSH_USER}@${env.LIVE_SERVER} 'bash -s' << 'MERGE_SCRIPT'
+set -euo pipefail
+cd ${env.SERVICE_DIR}
+echo "Merging test → ${env.LIVE_BRANCH} via git..."
+git remote set-url origin "${env.GOGS_REPO_URL}/${env.GOGS_ORG}/${env.REPO_NAME}.git"
+git fetch origin
+git checkout ${env.LIVE_BRANCH}
+git merge origin/test --no-edit
+git push origin ${env.LIVE_BRANCH}
+echo "Git merge complete."
+MERGE_SCRIPT
+                        """
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // STAGE 4: Deploy to live EC2
+        // ============================================================
+        stage('Deploy to Live') {
+            steps {
+                sshagent(credentials: [env.SSH_KEY_ID]) {
+                    script {
+                        // ---- Ship .env if configured ----
+                        if (env.ENV_FILE_ID?.trim()) {
+                            withCredentials([file(credentialsId: env.ENV_FILE_ID, variable: 'ENV_FILE')]) {
+                                sh """
+                                    scp -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                        "\$ENV_FILE" "${env.SSH_USER}@${env.LIVE_SERVER}:${env.SERVICE_DIR}/.env.new"
+                                    ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                        "${env.SSH_USER}@${env.LIVE_SERVER}" \
+                                        "chmod 600 '${env.SERVICE_DIR}/.env.new' && mv '${env.SERVICE_DIR}/.env.new' '${env.SERVICE_DIR}/.env'"
+                                """
+                            }
+                            echo ".env file deployed to live server."
+                        }
+
+                        // ---- Bootstrap git credentials on live server ----
+                        // Only needed when the live server itself pulls from git (fastapi).
+                        // Ember ships dist via scp and never touches git on live — skip.
+                        if (env.GOGS_REPO_CRED?.trim() && env.SERVICE_TYPE != 'ember') {
+                            withCredentials([usernamePassword(
+                                credentialsId: env.GOGS_REPO_CRED,
+                                usernameVariable: 'GOGS_USER',
+                                passwordVariable: 'GOGS_PASS'
+                            )]) {
+                                def gogsHost = env.GOGS_REPO_URL ?: 'http://<GOGS_PRIVATE_IP>:3000'
+                                // Force remote bash (some EC2 users default to zsh, which mis-parses the piped URL).
+                                sh """
+                                    CRED_URL=\$(printf '%s' "${gogsHost}" | sed "s|http://|http://\${GOGS_USER}:\${GOGS_PASS}@|")
+                                    ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                        "${env.SSH_USER}@${env.LIVE_SERVER}" \
+                                        "bash -s" << EOF
+umask 077
+echo "\$CRED_URL" > ~/.git-credentials
+chmod 600 ~/.git-credentials
+git config --global credential.helper store
+EOF
+                                """
+                            }
+                        }
+
+                        // ==========================================
+                        // FastAPI deploy
+                        // ==========================================
+                        if (env.SERVICE_TYPE == 'fastapi') {
+                            def healthCurl = env.SOCKET_PATH?.trim() ?
+                                "curl -sf -o /dev/null -w '%{http_code}' --max-time 5 --unix-socket ${env.SOCKET_PATH} 'http://localhost${env.HEALTH_PATH}'" :
+                                "curl -sf -o /dev/null -w '%{http_code}' --max-time 5 'http://localhost:${env.SERVICE_PORT}${env.HEALTH_PATH}'"
+
+                            sh """
+                                ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                    ${env.SSH_USER}@${env.LIVE_SERVER} 'bash -s' << 'DEPLOY_SCRIPT'
+set -euo pipefail
+
+SERVICE_DIR="${env.SERVICE_DIR}"
+APP_VENV="${env.VENV_PATH}"
+SYSTEMD_UNIT="${env.SYSTEMD_UNIT}"
+LIVE_BRANCH="${env.LIVE_BRANCH}"
+
+echo "=========================================="
+echo "  LIVE DEPLOY: ${params.SERVICE} (fastapi)"
+echo "  Server: \$(hostname)"
+echo "  Time:   \$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+echo "=========================================="
+
+cd "\$SERVICE_DIR"
+[ -d "\$APP_VENV" ] || { echo "ERROR: venv not found at \$APP_VENV"; exit 1; }
+[ -f .env ]         || { echo "ERROR: .env missing"; exit 1; }
+
+# ---- Save rollback point ----
+PREV_COMMIT=\$(git rev-parse HEAD)
+PREV_MIGRATION=""
+if [ -f alembic.ini ]; then
+    PREV_MIGRATION=\$("\$APP_VENV/bin/alembic" current 2>/dev/null | grep -oE '^[a-f0-9]+' | head -1 || echo "")
+fi
+echo "[1/6] Rollback: \$PREV_COMMIT (migration: \${PREV_MIGRATION:-none})"
+
+rollback() {
+    echo ""
+    echo "!!! ROLLING BACK !!!"
+    cd "\$SERVICE_DIR"
+    git reset --hard "\$PREV_COMMIT" || echo "WARNING: git reset failed"
+    "\$APP_VENV/bin/pip" install -r requirements.txt --quiet || echo "WARNING: pip rollback failed"
+    if [ -n "\$PREV_MIGRATION" ] && [ -f alembic.ini ]; then
+        echo "NOTE: Migration auto-downgrade not attempted. Manual:"
+        echo "  \$APP_VENV/bin/alembic downgrade \$PREV_MIGRATION"
+    fi
+    sudo systemctl restart "\$SYSTEMD_UNIT" || echo "WARNING: restart failed"
+    echo "Rollback finished."
+}
+trap 'echo "ERROR at line \$LINENO"; rollback; exit 1' ERR
+
+# ---- Pull ----
+echo "[2/6] Pulling \$LIVE_BRANCH..."
+git fetch origin "\$LIVE_BRANCH"
+git reset --hard "origin/\$LIVE_BRANCH"
+NEW_COMMIT=\$(git rev-parse HEAD)
+echo "       \$PREV_COMMIT → \$NEW_COMMIT"
+
+CODE_CHANGED=true
+if [ "\$PREV_COMMIT" = "\$NEW_COMMIT" ]; then
+    CODE_CHANGED=false
+    echo "       No git changes — checking for pending Alembic migrations."
+else
+    git log --oneline -n 10 "\$PREV_COMMIT..\$NEW_COMMIT" | sed 's/^/       /' || true
+fi
+
+# ---- Migration drift check (runs even when git is unchanged) ----
+MIGRATION_PENDING=false
+if [ -f alembic.ini ]; then
+    HEAD_MIGRATION=\$("\$APP_VENV/bin/alembic" heads 2>/dev/null | grep -oE '^[a-f0-9]+' | head -1 || echo "")
+    if [ -n "\$HEAD_MIGRATION" ] && [ "\$PREV_MIGRATION" != "\$HEAD_MIGRATION" ]; then
+        MIGRATION_PENDING=true
+        echo "       Pending migration detected: \${PREV_MIGRATION:-none} → \$HEAD_MIGRATION"
+    fi
+fi
+
+# ---- Early exit only if nothing to do ----
+if [ "\$CODE_CHANGED" = false ] && [ "\$MIGRATION_PENDING" = false ]; then
+    echo "       No code changes and no pending migrations. Done."
+    trap - ERR; exit 0
+fi
+
+# ---- Dependencies (skip when only DB drift, no code change) ----
+echo "[3/6] Installing dependencies..."
+if [ "\$CODE_CHANGED" = true ]; then
+    "\$APP_VENV/bin/pip" install -r requirements.txt --quiet
+else
+    echo "       Skipped (no code change)."
+fi
+
+# ---- Migrations ----
+echo "[4/6] Database migrations..."
+if [ -f alembic.ini ]; then
+    if [ "\$MIGRATION_PENDING" = false ]; then
+        echo "       No pending migrations."
+    else
+        # Pre-migration backup
+        DB_NAME=\$(grep -E '^DB_NAME=' "\$SERVICE_DIR/.env" | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | xargs)
+        if [ -n "\$DB_NAME" ]; then
+            BACKUP_DIR="<BACKUP_DIR>"
+            sudo install -d -o "\$USER" -g "\$USER" -m 755 "\$BACKUP_DIR"
+            TIMESTAMP=\$(date -u +%Y%m%d-%H%M%S)
+            BACKUP_FILE="\$BACKUP_DIR/live-predeploy-\${TIMESTAMP}-\${PREV_COMMIT:0:8}.sql.gz"
+            echo "       Backing up DB '\$DB_NAME'..."
+            sudo -u postgres pg_dump --no-owner --no-privileges "\$DB_NAME" | gzip > "\$BACKUP_FILE"
+            echo "       Backup: \$BACKUP_FILE (\$(du -h "\$BACKUP_FILE" | cut -f1))"
+
+            # Rotate: keep newest 10 + last 7 days
+            (
+                cd "\$BACKUP_DIR"
+                keep_count=\$(ls -1t live-predeploy-*.sql.gz 2>/dev/null | head -10 || true)
+                keep_time=\$(find . -maxdepth 1 -name 'live-predeploy-*.sql.gz' -mtime -7 -printf '%f\\n' 2>/dev/null || true)
+                all_files=\$(ls -1 live-predeploy-*.sql.gz 2>/dev/null || true)
+                keep=\$(printf '%s\\n%s\\n' "\$keep_count" "\$keep_time" | sort -u | grep -v '^\$' || true)
+                to_delete=\$(comm -23 <(echo "\$all_files" | sort) <(echo "\$keep" | sort) || true)
+                [ -n "\$to_delete" ] && echo "\$to_delete" | xargs rm -f && echo "       Pruned \$(echo "\$to_delete" | wc -l) old backup(s)."
+            ) || true
+        fi
+
+        echo "       Running alembic upgrade head..."
+        "\$APP_VENV/bin/alembic" upgrade head
+        echo "       Migration: \${PREV_MIGRATION:-none} → \$("\$APP_VENV/bin/alembic" current 2>/dev/null | grep -oE '^[a-f0-9]+' | head -1 || echo '?')"
+    fi
+else
+    echo "       No alembic.ini, skipping."
+fi
+
+# ---- Restart ----
+echo "[5/6] Restarting \$SYSTEMD_UNIT..."
+sudo systemctl restart "\$SYSTEMD_UNIT"
+sleep 3
+if ! systemctl is-active --quiet "\$SYSTEMD_UNIT"; then
+    echo "ERROR: Service failed to start!"
+    journalctl -u "\$SYSTEMD_UNIT" -n 30 --no-pager || true
+    false
+fi
+echo "       Service active."
+sudo systemctl reload nginx 2>/dev/null && echo "       nginx reloaded." || true
+
+# ---- Health check ----
+echo "[6/6] Health check..."
+HEALTHY=false
+for i in 1 2 3 4 5; do
+    HTTP_CODE=\$(${healthCurl} 2>/dev/null || echo "000")
+    if [ "\$HTTP_CODE" = "200" ]; then
+        HEALTHY=true; echo "       Attempt \$i: HTTP 200 OK"; break
+    fi
+    echo "       Attempt \$i: HTTP \$HTTP_CODE, retrying in 5s..."
+    sleep 5
+done
+[ "\$HEALTHY" = false ] && { echo "ERROR: Health check failed!"; false; }
+
+trap - ERR
+echo ""
+echo "=========================================="
+echo "  LIVE DEPLOY SUCCESS!"
+echo "  \$PREV_COMMIT → \$NEW_COMMIT"
+echo "  Time: \$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+echo "=========================================="
+DEPLOY_SCRIPT
+                            """
+
+                        // ==========================================
+                        // Ember.js deploy — promotion-gate pattern
+                        //   1. Build on Jenkins (not on live)
+                        //   2. Local merge test → master in Jenkins build cache
+                        //   3. Build dist
+                        //   4. Ship dist to live, atomic swap
+                        //   5. Health check
+                        //   6. ONLY on success: push merge + tag to Gogs
+                        //   master in Gogs == what's currently live
+                        // ==========================================
+                        } else if (env.SERVICE_TYPE == 'ember') {
+                            def buildDir = "/var/lib/jenkins/build-cache/${params.SERVICE}"
+                            def deployTs = sh(script: "date -u +%Y%m%d-%H%M%S", returnStdout: true).trim()
+
+                            withCredentials([usernamePassword(
+                                credentialsId: env.GOGS_REPO_CRED,
+                                usernameVariable: 'GOGS_USER',
+                                passwordVariable: 'GOGS_PASS'
+                            )]) {
+                                // ---- [1] Prepare build workspace + local merge ----
+                                sh """
+set -euo pipefail
+BUILD_DIR="${buildDir}"
+mkdir -p "\$BUILD_DIR"
+cd "\$BUILD_DIR"
+
+# Authenticated remote URL (creds masked in console)
+AUTH_URL=\$(printf '%s' "${env.GOGS_REPO_URL}" | sed "s|http://|http://\${GOGS_USER}:\${GOGS_PASS}@|")/${env.GOGS_ORG}/${env.REPO_NAME}.git
+
+if [ ! -d .git ]; then
+    echo "[1/9] Initializing build workspace at \$BUILD_DIR..."
+    git init -q
+    git remote add origin "\$AUTH_URL"
+else
+    echo "[1/9] Build workspace exists — updating remote URL..."
+    git remote set-url origin "\$AUTH_URL"
+fi
+
+# Identity for the merge commit
+git config user.email "<DEPLOY_BOT_EMAIL>"
+git config user.name  "<DEPLOY_BOT_NAME>"
+
+echo "[2/9] Fetching test (required) and ${env.LIVE_BRANCH} (if exists)..."
+git fetch --prune origin test
+if git fetch --prune origin "${env.LIVE_BRANCH}" 2>/dev/null; then
+    HAS_LIVE_BRANCH=true
+else
+    HAS_LIVE_BRANCH=false
+    echo "       Remote has no '${env.LIVE_BRANCH}' branch yet — will create from test."
+fi
+
+if [ "\$HAS_LIVE_BRANCH" = true ]; then
+    echo "[3/9] Checking out ${env.LIVE_BRANCH}..."
+    git checkout -B "${env.LIVE_BRANCH}" "origin/${env.LIVE_BRANCH}"
+    git reset --hard "origin/${env.LIVE_BRANCH}"
+
+    echo "[4/9] Local merge test → ${env.LIVE_BRANCH} (not yet pushed)..."
+    if ! git merge origin/test --no-ff -m "Promote to live ${deployTs}"; then
+        git merge --abort 2>/dev/null || true
+        echo "ERROR: Merge conflict between test and ${env.LIVE_BRANCH}."
+        echo "       Resolve in Gogs UI or local clone, then retry."
+        exit 1
+    fi
+else
+    echo "[3/9] Bootstrapping ${env.LIVE_BRANCH} from test (first deploy)..."
+    git checkout -B "${env.LIVE_BRANCH}" origin/test
+    echo "[4/9] Skipping merge — ${env.LIVE_BRANCH} == test for first deploy."
+fi
+
+NEW_SHA=\$(git rev-parse HEAD)
+echo "       At \$NEW_SHA"
+echo "\$NEW_SHA" > .deploy-sha
+                                """
+
+                                // ---- [2] Install + build dist ----
+                                sh """
+set -euo pipefail
+cd "${buildDir}"
+
+echo "[5/9] Installing dependencies..."
+npm ci --silent 2>/dev/null || npm install --silent
+
+echo "[6/9] Building dist (DEPLOY_TARGET=${env.DEPLOY_TARGET})..."
+rm -rf tmp/ dist/ dist.tgz
+env DEPLOY_TARGET="${env.DEPLOY_TARGET}" npx ember build --environment=production
+
+[ -d dist ] || { echo "ERROR: dist/ not produced"; exit 1; }
+echo "       Build size: \$(du -sh dist | cut -f1)"
+
+echo "[7/9] Packaging dist..."
+tar czf dist.tgz -C dist .
+echo "       Tarball: \$(du -h dist.tgz | cut -f1)"
+                                """
+
+                                // ---- [3] Ship to live + atomic swap ----
+                                sh """
+set -euo pipefail
+cd "${buildDir}"
+NEW_SHA=\$(cat .deploy-sha)
+SHORT_SHA=\${NEW_SHA:0:8}
+REMOTE_TARBALL="/tmp/dist-\${SHORT_SHA}.tgz"
+
+echo "[8/9] Shipping dist to live (${env.SSH_USER}@${env.LIVE_SERVER})..."
+scp -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+    dist.tgz "${env.SSH_USER}@${env.LIVE_SERVER}:\$REMOTE_TARBALL"
+
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+    "${env.SSH_USER}@${env.LIVE_SERVER}" \
+    "NEW_SHA='\$NEW_SHA' REMOTE_TARBALL='\$REMOTE_TARBALL' bash -s" << 'SWAP_SCRIPT'
+set -euo pipefail
+SERVICE_DIR="${env.SERVICE_DIR}"
+mkdir -p "\$SERVICE_DIR"
+cd "\$SERVICE_DIR"
+
+# Extract new dist
+rm -rf dist.new
+mkdir dist.new
+tar xzf "\$REMOTE_TARBALL" -C dist.new
+
+# Atomic swap (keep one prior version for rollback)
+if [ -d dist ]; then
+    rm -rf dist.bak
+    mv dist dist.bak
+fi
+mv dist.new dist
+
+# Stamp deployed sha for easy inspection
+echo "\$NEW_SHA \$(date -u +%Y-%m-%dT%H:%M:%SZ)" > DEPLOYED_SHA
+
+sudo systemctl reload nginx
+rm -f "\$REMOTE_TARBALL"
+echo "Dist deployed and nginx reloaded."
+SWAP_SCRIPT
+                                """
+
+                                // ---- [4] Health check, rollback dist on failure ----
+                                sh """
+set -euo pipefail
+echo "[9/9] Health check..."
+HEALTHY=false
+for i in 1 2 3 4 5; do
+    HTTP=\$(ssh -o StrictHostKeyChecking=no "${env.SSH_USER}@${env.LIVE_SERVER}" \
+        "curl -sf -o /dev/null -w '%{http_code}' --max-time 5 'http://localhost${env.HEALTH_PATH}'" 2>/dev/null || echo "000")
+    if [ "\$HTTP" = "200" ]; then
+        HEALTHY=true
+        echo "       Attempt \$i: HTTP 200 OK"
+        break
+    fi
+    echo "       Attempt \$i: HTTP \$HTTP, retrying in 5s..."
+    sleep 5
+done
+
+if [ "\$HEALTHY" = false ]; then
+    echo "ERROR: Health check failed — rolling back dist on live..."
+    ssh -o StrictHostKeyChecking=no "${env.SSH_USER}@${env.LIVE_SERVER}" 'bash -s' << 'ROLLBACK_SCRIPT'
+set -euo pipefail
+cd "${env.SERVICE_DIR}"
+if [ -d dist.bak ]; then
+    rm -rf dist
+    mv dist.bak dist
+    sudo systemctl reload nginx
+    echo "Live rolled back to previous dist."
+else
+    echo "WARNING: no dist.bak to roll back to."
+fi
+ROLLBACK_SCRIPT
+    # Also reset Jenkins build workspace so the unpushed merge doesn't linger
+    ( cd "${buildDir}" && git reset --hard "origin/${env.LIVE_BRANCH}" ) || true
+    exit 1
+fi
+                                """
+
+                                // ---- [5] Publish merge to Gogs (only if all above succeeded) ----
+                                sh """
+set -euo pipefail
+cd "${buildDir}"
+NEW_SHA=\$(cat .deploy-sha)
+SHORT_SHA=\${NEW_SHA:0:8}
+TAG="live-${deployTs}-\${SHORT_SHA}"
+
+echo "Publishing merge to Gogs (${env.LIVE_BRANCH})..."
+PUSHED=false
+for attempt in 1 2 3; do
+    if git push origin "${env.LIVE_BRANCH}"; then
+        echo "       Push succeeded on attempt \$attempt"
+        PUSHED=true
+        break
+    fi
+    echo "       Push failed (attempt \$attempt/3) — rebasing and retrying..."
+    git pull --rebase origin "${env.LIVE_BRANCH}" || true
+    sleep 5
+done
+
+if [ "\$PUSHED" = false ]; then
+    echo "WARNING: Could not push to Gogs after 3 attempts."
+    echo "         Live is OK (dist is deployed) but Gogs master is out of sync."
+    echo "         Manual: cd ${buildDir} && git push origin ${env.LIVE_BRANCH}"
+    exit 0
+fi
+
+# Tag the deploy
+git tag -a "\$TAG" -m "Live deploy ${deployTs}"
+git push origin "\$TAG" || echo "WARNING: tag push failed (non-fatal)"
+
+echo ""
+echo "=========================================="
+echo "  LIVE DEPLOY SUCCESS!"
+echo "  Sha:  \$NEW_SHA"
+echo "  Tag:  \$TAG"
+echo "  Time: \$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+echo "=========================================="
+                                """
+                            }
+
+                        } else {
+                            error "Unknown service type: ${env.SERVICE_TYPE}. Add a deploy block for it."
+                        }
+                    }
+                }
+            }
+        }
+
+        // ============================================================
+        // STAGE 5: Extra stages (SQL sync, cache warm, etc.)
+        // ============================================================
+        stage('Post-Deploy') {
+            when {
+                expression { env.EXTRA_STAGES?.trim() }
+            }
+            steps {
+                sshagent(credentials: [env.SSH_KEY_ID]) {
+                    script {
+                        def stages = env.EXTRA_STAGES.split(',')
+
+                        if (stages.contains('sql-sync')) {
+                            echo "Running SQL stored procedure sync..."
+                            def healthSocket = env.SOCKET_PATH?.trim() ?
+                                "--unix-socket ${env.SOCKET_PATH}" : ""
+
+                            sh """
+                                ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 \
+                                    ${env.SSH_USER}@${env.LIVE_SERVER} 'bash -s' << 'SYNC_SCRIPT'
+set -euo pipefail
+echo "Syncing SQL stored procedures..."
+RESPONSE=\$(mktemp)
+trap 'rm -f "\$RESPONSE"' EXIT
+
+HTTP_CODE=\$(curl -sS -o "\$RESPONSE" -w "%{http_code}" \
+    --max-time 60 \
+    ${healthSocket} \
+    -X POST -H 'Content-Type: application/json' \
+    "http://localhost/api/v1/sql/sync-functions" || echo "000")
+
+echo "HTTP \$HTTP_CODE"
+cat "\$RESPONSE" || true
+[ "\$HTTP_CODE" = "200" ] || { echo "ERROR: SQL sync failed"; exit 1; }
+echo "SQL sync OK."
+SYNC_SCRIPT
+                            """
+                        }
+
+                        // Add more extra stages here:
+                        // if (stages.contains('cache-warm')) { ... }
+                        // if (stages.contains('notify-slack')) { ... }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "=========================================="
+            echo "  LIVE DEPLOY SUCCESS: ${params.SERVICE}"
+            echo "  Server: ${env.SSH_USER}@${env.LIVE_SERVER}"
+            echo "  Build:  #${env.BUILD_NUMBER}"
+            echo "=========================================="
+        }
+        failure {
+            echo "=========================================="
+            echo "  LIVE DEPLOY FAILED: ${params.SERVICE}"
+            echo "  Server: ${env.SSH_USER}@${env.LIVE_SERVER}"
+            echo "  Build:  #${env.BUILD_NUMBER}"
+            echo "  Log:    ${env.BUILD_URL}console"
+            echo "=========================================="
+        }
+    }
+}
