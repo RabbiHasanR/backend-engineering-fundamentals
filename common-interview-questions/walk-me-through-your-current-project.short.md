@@ -1,10 +1,7 @@
-# Walk Me Through Your Current Project — Short Spoken Script (~3.5 minutes)
-
-> Spoken script. Easy English. Target time: 3–3.5 minutes. Pause briefly between sections.
-
+# Walk Me Through Your Current Project — Short Spoken Script
 ---
 
-## 1. Context — *~25 seconds*
+## 1. Context — 
 
 I work at a sports-tech company. We build a platform where players can create their own sports profile and join matches and tournaments.
 
@@ -14,7 +11,7 @@ So this service protects the platform from duplicate users and fake accounts.
 
 ---
 
-## 2. Architecture — *~60 seconds*
+## 2. Architecture —
 
 I'm a backend engineer, but I designed the **full flow** for this service — both client side and server side. The mobile team implemented the client part based on my design.
 
@@ -28,13 +25,13 @@ A **Celery worker** then runs a multi-step saga: take a Redis lock per user, cal
 
 ---
 
-## 3. Role — *~15 seconds*
+## 3. Role —
 
 I owned the backend service end-to-end — the architecture, API, Celery worker, queue design, failure handling, and the cron reconciliation. I also designed the client validation flow, which my mobile teammates implemented.
 
 ---
 
-## 4. Technical depth — Failures I had to handle — *~70 seconds*
+## 4. Technical depth — Failures I had to handle — 
 
 The hardest part was **failure handling**, because the flow touches S3, the face service, Qdrant, and Postgres — any of them can fail mid-way. I designed for five failure scenarios:
 
@@ -48,13 +45,13 @@ The trade-off I accepted: the user waits a few seconds for the async result inst
 
 ---
 
-## 5. Impact — *~15 seconds*
+## 5. Impact —
 
 Verification is now fully async and non-blocking, survives partial failures of any downstream service, and duplicate accounts are caught before a profile is opened. Bad images are rejected on the client, so server load stays low.
 
 ---
 
-## 6. Outlook — *~20 seconds*
+## 6. Outlook — 
 
 My **most important next goal is proper observability** — metrics, dashboards, and alerts on queue depth, retries, and zombie-user fixes. Right now we recover from failures but can't easily *see* them in real time. After that, worker autoscaling and chaos testing.
 
