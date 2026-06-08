@@ -123,6 +123,10 @@ Limit = 10 → 8.4 < 10 → ALLOW ✅
 ---
 
 
+
+## Redis Rate Limiting Best Practices
+
+
 ## Conclusion
 
 There is no single "best" rate limiter — there's the one that fits your traffic shape and constraints. If you want a safe default, **sliding window counter** gives you accuracy and low memory. If your users naturally burst, reach for **token bucket**. If you must protect a fragile downstream at all costs, **leaky bucket**. And if you're just starting and want something dead simple, **fixed window counter** is fine — just know about its boundary problem before it surprises you in production.
