@@ -127,6 +127,38 @@ Limit = 10 → 8.4 < 10 → ALLOW ✅
 ## Redis Rate Limiting Best Practices
 
 
+## Challenges Of Rate limiter
+
+1. The Race Condition Problem
+
+2. Distributed State Consistency: A single server rate limiting is trivial. The moment you have multiple gateway instances, they must share state — otherwise each thinks it's the only one counting.
+
+3.  Clock Skew Across Servers: Token bucket and sliding window algorithms both depend on timestamps. If Gateway A's clock is 200ms ahead of Gateway B's clock, they'll calculate different refill amounts for the same user. At scale, this causes:
+
+Over-counting refills (users get more requests than allowed)
+Under-counting (users get throttled unfairly)
+
+4. The Thundering Herd at Window Boundaries
+
+5. Choosing the Right Granularity
+
+6. Cold Start / New User Problem
+
+7. Identifying the Right Client: This sounds simple — use the user ID. But in practice:
+
+Unauthenticated users: you fall back to IP address — but NAT means thousands of users can share one IP (office networks, mobile carriers). Block the IP and you've blocked everyone behind that NAT.
+Authenticated users behind proxies: X-Forwarded-For header can be spoofed. A malicious client can rotate headers to appear as different IPs.
+API keys: if a key is shared or leaked, the legitimate owner gets throttled because an attacker is burning their quota.
+
+There's no perfect identifier — you pick the least-bad option per context and accept the trade-offs.
+
+
+8. What To Do When Redis Goes Down
+
+9. Algorithm Parameter Tuning
+
+10. Monitoring and Observability Blind Spots
+
 ## Conclusion
 
 There is no single "best" rate limiter — there's the one that fits your traffic shape and constraints. If you want a safe default, **sliding window counter** gives you accuracy and low memory. If your users naturally burst, reach for **token bucket**. If you must protect a fragile downstream at all costs, **leaky bucket**. And if you're just starting and want something dead simple, **fixed window counter** is fine — just know about its boundary problem before it surprises you in production.
