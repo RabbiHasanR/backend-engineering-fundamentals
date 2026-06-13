@@ -18,9 +18,6 @@ End with forward motion. Don't end on "…so that's me." Show intent.
 
 My answer:
 
-
-Here's your fully built answer:
-
 ---
 
 **Part 1 — Who you are now**
