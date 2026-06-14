@@ -159,6 +159,7 @@ There's no perfect identifier — you pick the least-bad option per context and 
 
 10. Monitoring and Observability Blind Spots
 
+
 ## Conclusion
 
 There is no single "best" rate limiter — there's the one that fits your traffic shape and constraints. If you want a safe default, **sliding window counter** gives you accuracy and low memory. If your users naturally burst, reach for **token bucket**. If you must protect a fragile downstream at all costs, **leaky bucket**. And if you're just starting and want something dead simple, **fixed window counter** is fine — just know about its boundary problem before it surprises you in production.
