@@ -149,3 +149,57 @@ Would you like a follow-up blog on gRPC-Web, streaming over gRPC, or service mes
 
 
 
+Types of GRPC:
+
+1. Unary: this is very similar to a RESTful call, the client sends a request and the server sends back response.
+
+2. Client Streaming — this is where RPC starts to differentiate itself a bit from REST. In this RPC type, the client initiates the connection and will continuously send messages to the server. When the client ends the stream, the server sends back a response.
+
+3. Server Streaming — this is streaming in the opposite direction. The client initiates the connection, and the server will start sending messages to the client. The server will trigger the connection end.
+
+4. Bi-directional streaming — this is similar to web sockets, both the client and server can send data through an open connection with the other.
+
+
+
+http2 + protobuf
+
+grpc use http2: http2 id binary framing, multiplexing, header compression
+
+protocol buggers: interface defincation language (IDL), code generators, runtime libraries for data serialization.
+
+
+
+grpc features: load balancing, security, observability, service discovery, codecs/compression 
+
+
+grpc has client side load balancing and feature rich service mesh
+
+
+in microservice grpc can use for:
+monitoring and tracing, interceptors(Middleware), streaming, rtries
+
+
+
+grpc use protobuff but although it can be used with other data formats such as json
+
+
+core concepts and architecture and lifcycle of grpc:
+
+channel: it is an abstract of the endpoint you can send or receive messages.
+
+subchannel:
+
+            Target URI(dns://example.com)                    Name resolution is service
+                                                              dicovery pluggable                                              IP  address
+lifecycle client to server: applciation(channel) -> stub(protobuf plugin) -> grpc runtime(api/core) -> transport
+            RPC                               ==                   call            ==  stream  
+
+
+
+
+            name resolution -> load balancer (manage subchannels, seamless http2., pluggable, build in pick first/round robin/weighted round robin/least request)
+
+
+
+
+lifecycle server to client: transport -> grpc runtime -> stub -> application
