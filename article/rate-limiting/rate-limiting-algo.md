@@ -125,11 +125,18 @@ Limit = 10 → 8.4 < 10 → ALLOW ✅
 
 
 ## Redis Rate Limiting Best Practices
-A few things I've learned using Redis for rate limiting in production
-INCR plus EXPIRE looks simple, but a few rough edges only show up under real traffic. First: never run them as two separate calls. If something crashes between them, you get a counter key that never expires, and across thousands of API keys that's a slow memory leak. Wrapping both inside MULTI/EXEC, or better, a small Lua script with EVAL, fixes this since Redis treats it as one atomic step. I moved to Lua scripts early on, mainly because it's also one round trip instead of two.
-Second: keep key names predictable, like ratelimit:[api-key]:[minute]. It sounds minor, but it makes debugging in redis-cli much faster when you're chasing down why a specific user got blocked.
-Third, and this one actually bit me: a plain per-minute counter has a boundary problem. A user can fire 20 requests in the last second of one window and 20 more in the first second of the next, getting 40 through in two seconds even though both windows passed the check individually. For most APIs this doesn't matter, but for anything expensive, like payments or search, it can hurt. The fix is a sliding window using a Redis sorted set instead of a flat counter.
-Last note: I've used both hand-rolled Redis limiters and built-in ones from gateways like Kong and AWS API Gateway. The built-in ones are fine for simple "X per minute" rules, but once you need custom logic, like per-tier limits, you end up writing your own anyway. Redis stays my go-to since INCR and EXPIRE map directly to the problem and the code is easy for anyone to follow.
+
+A few simple things I learned using Redis for rate limiting in production.
+
+1. **Keep INCR and EXPIRE together.** Don't run them as two separate calls. If your app crashes in between, you get a counter key that never expires — and across thousands of API keys, that slowly eats memory. Run both as one step using MULTI/EXEC, or better, a small Lua script with EVAL. It's atomic and only one round trip instead of two.
+
+2. **Use clear key names.** Something like `ratelimit:[api-key]:[minute]`. It looks small, but it makes debugging in redis-cli much faster when you need to find why a user got blocked.
+
+3. **Watch the window boundary.** A plain per-minute counter has a gap: a user can send 20 requests in the last second of one minute and 20 more in the first second of the next — 40 in two seconds, even though each window passed. Fine for most APIs, but bad for costly routes like payments or search. Fix it with a sliding window using a Redis sorted set.
+
+4. **Build your own when logic gets custom.** Built-in limiters from Kong or AWS API Gateway work fine for simple "X per minute" rules. But once you need things like per-tier limits, you end up writing your own anyway. Redis stays my go-to — INCR and EXPIRE map directly to the problem, and the code is easy to read.
+
+5. **Know the challenges and handle them in production.** A rate limiter has many edge cases: race conditions, shared state across servers, clock skew, thundering herd at window resets, picking the right window size, cold start for new users, identifying the right client, what to do when Redis goes down, tuning the limit, and monitoring. You don't need to solve all of them on day one, but in production you must handle the ones that affect your traffic — ignoring them causes silent leaks, unfair blocking, or attacks slipping through.
 
 Challenges Of Rate Limiter
 1. The Race Condition Problem
