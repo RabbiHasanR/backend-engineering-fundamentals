@@ -139,6 +139,7 @@ A few simple things I learned using Redis for rate limiting in production.
 5. **Know the challenges and handle them in production.** A rate limiter has many edge cases: race conditions, shared state across servers, clock skew, thundering herd at window resets, picking the right window size, cold start for new users, identifying the right client, what to do when Redis goes down, tuning the limit, and monitoring. You don't need to solve all of them on day one, but in production you must handle the ones that affect your traffic — ignoring them causes silent leaks, unfair blocking, or attacks slipping through.
 
 Challenges Of Rate Limiter
+
 1. The Race Condition Problem
 
 If you read a counter, check it, then write it back as three separate steps, two requests can both read the same value at the same instant and both pass, even though together they exceed the limit. Prevent it by using atomic operations like Redis INCR or a Lua script, so the read-check-write happens as one indivisible step.
