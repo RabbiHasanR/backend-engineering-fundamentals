@@ -94,6 +94,112 @@ protoc --go_out=./client    --go-grpc_out=./client    user.proto    # client sid
 | **Client streaming** | Many requests → 1 response | `rpc Upload(stream Req) returns (Res)` | File upload in chunks, batch insert |
 | **Bidirectional** | Many ↔ many (independent) | `stream Req → stream Res` | Real-time chat, game state, live collab |
 
+The table above says *what* each type is. What matters for architecture is *how* each one
+behaves on the wire — how it maps onto the `channel → subchannel → TCP → HTTP/2 stream` model
+built in Section 4. The single rule that governs all four:
+
+> **One RPC call = exactly one HTTP/2 stream.**
+> A stream carries one logical call from start to finish. You cannot pack multiple RPCs into
+> one stream, and a streaming RPC does **not** open a new stream per message — it keeps its
+> *one* stream open and sends more frames on it. The only difference between the 4 types is
+> **how many messages flow each way** on that single stream, and **when** the stream half-closes.
+
+---
+
+### 3.1 Unary — one message each way
+
+The simplest case: the entire request is serialized once and sent in a single shot. The client
+opens one stream, sends a `HEADERS` frame (method, path, deadline, metadata) followed by one
+`DATA` frame carrying the whole protobuf body, and immediately half-closes the stream with
+`END_STREAM` — it has nothing more to send. The server processes the full payload, then replies
+with one `DATA` frame and closing trailers. One message up, one message down, done.
+
+```
+# Unary — single message each direction, on ONE stream
+
+stub.GetUser(UserRequest(id=42), timeout=2.0)     # 1 RPC → stream ID 1
+
+CLIENT ──────────────────────────────────────────────► SERVER
+  [HEADERS stream=1]  :path=/UserService/GetUser
+  [DATA    stream=1]  <full protobuf payload>  END_STREAM   ← half-close now
+                                                            handler runs
+CLIENT ◄────────────────────────────────────────────── SERVER
+  [HEADERS stream=1]  :status=200
+  [DATA    stream=1]  <full response payload>
+  [HEADERS stream=1]  grpc-status=0 (trailers)  END_STREAM
+```
+
+> **1 RPC = 1 stream = 1 request message + 1 response message.** The full payload goes over
+> the wire at once, not piece by piece. This is the exact flow traced end-to-end (interceptors,
+> Picker, serialization, deadline) in [Section 7](#7-complete-requestresponse-lifecycle) — refer
+> there for the complete lifecycle rather than repeating it here.
+
+---
+
+### 3.2 Client Streaming — many messages up, one stream, one response
+
+Client streaming is where the "1 RPC = 1 stream" rule matters most. A single call —
+`rpc CreateUsers(stream UserRequest) returns (CreateResponse)` — opens **one** HTTP/2 stream and
+**keeps it open**. The client then writes messages **one by one over time**, and each write
+becomes its own `DATA` frame on that **same** stream ID. You are *not* opening a new RPC (or a
+new stream) per chunk, and you cannot multiplex several RPCs onto this one stream — it belongs to
+this single call until it ends.
+
+When the client has sent everything, it half-closes the stream with `END_STREAM`. **Only then**
+does the server compute and send back a **single** response message and trailers.
+
+```
+# Client streaming — N messages UP on ONE stream, 1 response DOWN
+
+call = stub.CreateUsers(iter_of_requests)         # 1 RPC → stream ID 1
+
+CLIENT ──────────────────────────────────────────────► SERVER
+  [HEADERS stream=1]  :path=/UserService/CreateUsers
+  [DATA    stream=1]  <chunk 1>        ┐
+  [DATA    stream=1]  <chunk 2>        │ same stream, sent one by one
+  [DATA    stream=1]  <chunk 3>        │ over time — NOT all at once
+  ...                                  │
+  [DATA    stream=1]  <chunk N>  END_STREAM   ← client half-closes
+                                                server now builds 1 response
+CLIENT ◄────────────────────────────────────────────── SERVER
+  [HEADERS stream=1]  :status=200
+  [DATA    stream=1]  <single CreateResponse>
+  [HEADERS stream=1]  grpc-status=0 (trailers)  END_STREAM
+
+# N chunks = N DATA frames on 1 stream — NOT N streams, NOT N RPCs.
+```
+
+In Python the streaming direction is expressed as an iterator/generator the client feeds into a
+single call; the return value is one plain response object:
+
+```python
+def request_stream():
+    yield UserRequest(id=1, name='Alice')     # each yield → one DATA frame
+    yield UserRequest(id=2, name='Bob')       # same stream, sent sequentially
+    yield UserRequest(id=3, name='Carol')     # client controls the pace
+
+response = stub.CreateUsers(request_stream())  # ONE RPC, ONE stream
+# stream stays open across all 3 yields, half-closes after the last one
+response.created_count   # → 3   (a single response, only after half-close)
+```
+
+> **This entire streaming RPC is just one stream on the subchannel's TCP.** Per
+> [Section 4.4](#44-http2-multiplexing--many-rpcs-on-1-tcp), other concurrent RPCs on the same
+> TCP connection still get their own odd stream IDs (3, 5, 7…) and flow independently — a
+> long-running client-stream on stream 1 never blocks them and never spills onto their streams.
+
+---
+
+### 3.3 Server Streaming — one request, many responses
+
+> _Coming soon._
+
+---
+
+### 3.4 Bidirectional Streaming — many ↔ many, independent
+
+> _Coming soon._
+
 ---
 
 ## 4. Core Architecture — Channel, Subchannel, TCP, HTTP/2
