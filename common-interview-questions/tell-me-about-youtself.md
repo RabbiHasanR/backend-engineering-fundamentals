@@ -32,26 +32,22 @@ My answer:
 
 ---
 
+**Previous job experience**
+
+"I started my career at a startup as a junior engineer, where I solo-built a website vulnerability scanner in Python, PostgreSQL, and React.js — it scanned any website's browser-accessible assets for security threats, with a heavy focus on WordPress plugins and themes. That product is still in use today. After that I joined my current company, where over the last 5 years I've worked across the full stack — backend, frontend, infrastructure, and CI/CD — and grew into leading a small team and mentoring juniors."
+
+---
+
 **Part 3 — One strong concrete thing**
 
 "One thing I'm most proud of recently is a WebSocket-based real-time communication service I built from scratch. The legacy service couldn't handle more than 500 concurrent users and was causing constant production pain. The new service I designed now handles 4,000 concurrent users reliably. Around the same time, I also designed our entire CI/CD pipeline solo — before that, every service was deployed manually, and any code change meant someone had to sit down and deploy 10+ services one by one for both test and live environments. That was slow, error-prone, and painful. Now the whole thing is automated end-to-end."
 
 ---
 
-**Part 4 — Why you're here (reusable template)**
-
-"I've grown a lot in my current role — I've owned real systems end to end, from architecture to production. Now I'm looking for a role where I can work at a larger scale and contribute to [distributed systems / high-traffic services / platform engineering — pick what fits]. I came across [Company] and what stood out to me was [one specific thing from the job description or their product]. That kind of challenge is exactly what I want to work on next."
 
 ---
 
-**How to use Part 4 before each interview:**
 
-You only need to change two things — the technical focus phrase and the one company-specific sentence. Everything else stays the same. For example:
 
-- For a fintech company: *"...where I can work on high-reliability, high-traffic payment systems... and what stood out was that you process millions of transactions daily with strict consistency guarantees."*
-- For a startup: *"...where I can own more of the architecture decisions... and what stood out was that you're building the infrastructure from the ground up, which is where I do my best work."*
-- For a product company: *"...where backend work directly impacts the end user experience... and what stood out was your real-time features, which is an area I've gone deep in."*
-
----
 
 This is clean, confident, and honest. It tells a real story, shows ownership, and ends with forward momentum. Practice it out loud twice before any interview — not to memorize, just to make it feel natural.
