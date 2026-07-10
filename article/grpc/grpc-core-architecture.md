@@ -192,7 +192,58 @@ response.created_count   # → 3   (a single response, only after half-close)
 
 ### 3.3 Server Streaming — one request, many responses
 
-> _Coming soon._
+Server streaming is the mirror image of client streaming. The client sends **one** request
+message and half-closes immediately — just like unary. But the response side stays open: a
+single call — `rpc ListUsers(ListRequest) returns (stream UserResponse)` — keeps **one** HTTP/2
+stream open and the **server** writes messages **one by one over time**, each becoming its own
+`DATA` frame on that **same** stream ID. The client does not poll and does not open a new RPC per
+result — it reads from the one open stream until the server sends closing trailers with
+`END_STREAM`, which marks the end of the sequence.
+
+```
+# Server streaming — 1 request UP, N messages DOWN on ONE stream
+
+call = stub.ListUsers(ListRequest(page=1))        # 1 RPC → stream ID 1
+
+CLIENT ──────────────────────────────────────────────► SERVER
+  [HEADERS stream=1]  :path=/UserService/ListUsers
+  [DATA    stream=1]  <full request payload>  END_STREAM   ← client half-closes
+                                                            handler starts streaming
+CLIENT ◄────────────────────────────────────────────── SERVER
+  [HEADERS stream=1]  :status=200
+  [DATA    stream=1]  <user 1>        ┐
+  [DATA    stream=1]  <user 2>        │ same stream, sent one by one
+  [DATA    stream=1]  <user 3>        │ over time — as the server produces them
+  ...                                 │
+  [DATA    stream=1]  <user N>        ┘
+  [HEADERS stream=1]  grpc-status=0 (trailers)  END_STREAM   ← end of sequence
+
+# N results = N DATA frames on 1 stream — NOT N streams, NOT N RPCs.
+```
+
+In Python the call returns an iterator; the client consumes results as they arrive instead of
+waiting for a single value. The server's handler `yield`s each message:
+
+```python
+# CLIENT — iterate over the response stream as messages arrive
+for user in stub.ListUsers(ListRequest(page=1)):   # ONE RPC, ONE stream
+    print(user.name)        # each loop = one DATA frame off stream 1
+# loop ends when server sends trailers (END_STREAM)
+
+# SERVER — handler yields messages one by one
+def ListUsers(self, request, context):
+    for user in db.query_users(request.page):
+        if not context.is_active():     # client gone? stop producing
+            return
+        yield UserResponse(id=user.id, name=user.name)   # → one DATA frame
+```
+
+> **1 request message up, many response messages down — all on one stream.** Backpressure is
+> built in: HTTP/2 flow control pauses the server's writes if the client reads slowly, so a fast
+> producer can't overwhelm a slow consumer. Per
+> [Section 4.4](#44-http2-multiplexing--many-rpcs-on-1-tcp), this long-lived stream is still just
+> one stream on the subchannel's TCP — other concurrent RPCs keep their own odd stream IDs
+> (3, 5, 7…) and are never blocked by it.
 
 ---
 
