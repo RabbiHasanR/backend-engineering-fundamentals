@@ -249,7 +249,63 @@ def ListUsers(self, request, context):
 
 ### 3.4 Bidirectional Streaming — many ↔ many, independent
 
-> _Coming soon._
+Bidirectional streaming combines both directions on the **same single stream**. One call —
+`rpc SyncUsers(stream UserRequest) returns (stream UserResponse)` — opens **one** HTTP/2 stream
+that stays open, and **both** sides send messages **one by one over time** on that same stream
+ID. The two directions are fully **independent**: the server does not have to wait for the client
+to half-close before it starts replying, and there is no fixed request↔response pairing. The
+client can send 3 messages, the server can send 5 back, interleaved in any order — HTTP/2 carries
+client `DATA` frames and server `DATA` frames on the one stream at the same time.
+
+Each side half-closes independently: the client sends `END_STREAM` when it has no more to send,
+the server sends closing trailers with `END_STREAM` when it is done. The call ends when both
+halves are closed.
+
+```
+# Bidirectional — both sides stream on ONE shared stream, independently
+
+call = stub.SyncUsers(iter_of_requests)           # 1 RPC → stream ID 1
+
+  [HEADERS stream=1]  :path=/UserService/SyncUsers      (client opens)
+  [HEADERS stream=1]  :status=200                       (server accepts)
+
+CLIENT ─────────────►  [DATA stream=1] <req 1>
+                       [DATA stream=1] <resp A>  ◄───────────── SERVER
+CLIENT ─────────────►  [DATA stream=1] <req 2>
+                       [DATA stream=1] <resp B>  ◄───────────── SERVER
+                       [DATA stream=1] <resp C>  ◄───────────── SERVER   (no pairing)
+CLIENT ─────────────►  [DATA stream=1] <req 3>  END_STREAM   (client half-closes)
+                       [DATA stream=1] <resp D>  ◄───────────── SERVER
+  [HEADERS stream=1]  grpc-status=0 (trailers)  END_STREAM   (server half-closes)
+
+# Interleaved freely, no request→response lockstep. Still ONE stream, ONE RPC.
+```
+
+In Python the client feeds an iterator **and** receives an iterator from the same call — read and
+write loops run concurrently:
+
+```python
+# CLIENT — send a stream, receive a stream, on ONE RPC
+def request_stream():
+    yield UserRequest(id=1)          # each yield → one DATA frame up
+    yield UserRequest(id=2)
+
+responses = stub.SyncUsers(request_stream())   # ONE RPC, ONE stream
+for resp in responses:               # read replies as they arrive — independent
+    print(resp.name)                 # server may reply before you finish sending
+
+# SERVER — read the request stream, yield replies independently
+def SyncUsers(self, request_iterator, context):
+    for req in request_iterator:     # each = one DATA frame from client
+        yield UserResponse(id=req.id)   # reply whenever ready — no lockstep
+```
+
+> **Both directions, one stream, no lockstep.** Bidi is not "many unary calls" — it is a single
+> long-lived stream where each side pushes messages when it has them. HTTP/2 flow control applies
+> per direction, so each side can be paused independently. Per
+> [Section 4.4](#44-http2-multiplexing--many-rpcs-on-1-tcp), this one stream still shares the
+> subchannel's TCP with other RPCs on their own odd stream IDs (3, 5, 7…) — they run unaffected.
+> This is what powers real-time chat, live collaboration, and game-state sync.
 
 ---
 
