@@ -34,3 +34,28 @@ class FileLogger(Logger):
     def log(self, message: str) -> None:
         # In production, this would write to a file
         print(f"Writing to {self._file_path}: {self.format_message(message)}")
+        
+        
+        
+        
+# Interfaces as Abstraction
+# While abstract classes abstract a family of related classes that share behavior,
+# interfaces abstract a capability that unrelated classes can share. Consider data export: 
+# you might need to export user data as CSV, order data as JSON, or analytics data as XML. 
+# These classes have nothing in common structurally, but they all share the capability of exporting data.
+
+
+from abc import ABC, abstractmethod
+
+class Exportable(ABC):
+    @abstractmethod
+    def export(self) -> str:
+        pass
+
+class CSVExporter(Exportable):
+    def export(self) -> str:
+        return "name,email,age\nAlice,alice@example.com,30"
+
+class JSONExporter(Exportable):
+    def export(self) -> str:
+        return '{"name": "Alice", "email": "alice@example.com"}'
