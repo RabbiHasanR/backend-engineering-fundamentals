@@ -1,3 +1,5 @@
+DRY = Don't repeate yourself
+
 1. What Is the DRY Principle?
 “Every piece of knowledge must have a single, unambiguous, authoritative representation within a system.” — The Pragmatic Programmer
 
