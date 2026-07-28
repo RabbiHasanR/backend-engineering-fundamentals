@@ -169,4 +169,5 @@ if __name__ == "__main__":
 
     data = generator.generate()
     csv = formatter.format_as_csv(data)
+    
     distributor.distribute("manager@company.com", csv)
