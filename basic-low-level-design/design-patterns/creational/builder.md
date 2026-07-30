@@ -1,0 +1,81 @@
+1. The Problem: Building Complex HttpRequest Objects
+
+
+Imagine you're building a system that needs to configure and create HTTP requests.
+
+Each HttpRequest can contain a mix of required and optional fields:
+
+URL (required)
+HTTP Method (e.g., GET, POST, PUT, defaults to GET)
+Headers (optional, multiple key-value pairs)
+Query Parameters (optional, multiple key-value pairs)
+Request Body (optional, typically for POST/PUT)
+Timeout (optional, default to 30 seconds)
+At first glance, it seems manageable. But as the number of optional fields increases, so does the complexity of object construction.
+
+The Naive Approach: Telescoping Constructors
+A common approach is constructor overloading, often called the telescoping constructor anti-pattern. You define multiple constructors with increasing numbers of parameters:
+
+```python
+class HttpRequestTelescoping:
+    def __init__(self, url, method="GET", headers=None, query_params=None, body=None, timeout=30000):
+        self.url = url
+        self.method = method
+        self.headers = headers if headers is not None else {}
+        self.query_params = query_params if query_params is not None else {}
+        self.body = body
+        self.timeout = timeout
+
+        print(f"HttpRequest Created: URL={url}, "
+              f"Method={method}, "
+              f"Headers={len(self.headers)}, "
+              f"Params={len(self.query_params)}, "
+              f"Body={body is not None}, "
+              f"Timeout={timeout}")
+
+    # Optional: add getter methods if needed
+```
+
+
+Example Client Code
+
+
+```python
+if __name__ == "__main__":
+    req1 = HttpRequestTelescoping("https://api.example.com/data")
+
+    req2 = HttpRequestTelescoping(
+        "https://api.example.com/submit",
+        "POST",
+        None,
+        None,
+        '{"key":"value"}'
+    )
+
+    req3 = HttpRequestTelescoping(
+        "https://api.example.com/config",
+        "PUT",
+        {"X-API-Key": "secret"},
+        None,
+        "config_data",
+        5000
+    )
+```
+
+
+What’s Wrong with This Approach?
+While it works functionally, this design quickly becomes unwieldy and error-prone as the object becomes more complex.
+
+1. Hard to Read and Write
+Multiple parameters of the same type (e.g., String, Map) make it easy to accidentally swap arguments. Code is difficult to understand at a glance, especially when most parameters are null.
+
+2. Error-Prone
+Clients must pass null for optional parameters they do not want to set, increasing the risk of bugs. One wrong position and you silently assign a value to the wrong field.
+
+3. Inflexible and Fragile
+If you want to set parameter 5 but not 3 and 4, you are forced to pass null for 3 and 4. You must follow the exact parameter order, which hurts both readability and usability.
+
+4. Poor Scalability
+Adding a new optional parameter requires adding or changing constructors, which may break existing code. Testing and documentation become increasingly difficult to maintain.
+
+We need a more flexible, readable, and maintainable way to construct HttpRequest objects. This is exactly where the Builder pattern comes in.
