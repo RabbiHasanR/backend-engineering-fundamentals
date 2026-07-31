@@ -79,3 +79,35 @@ If you want to set parameter 5 but not 3 and 4, you are forced to pass null for 
 Adding a new optional parameter requires adding or changing constructors, which may break existing code. Testing and documentation become increasingly difficult to maintain.
 
 We need a more flexible, readable, and maintainable way to construct HttpRequest objects. This is exactly where the Builder pattern comes in.
+
+
+
+2. What is the Builder Pattern
+The Builder pattern separates the construction of a complex object from its representation, allowing the same construction process to create different configurations.
+
+Two ideas define the pattern:
+
+Step-by-step construction: Instead of passing everything to a constructor at once, you set each field through individual method calls. You only call the methods for the fields you need.
+Fluent interface: Each setter method returns the builder itself, allowing you to chain calls into a single readable expression that ends with build().
+
+Before: Telescoping Constructor
+
+```python
+req = HttpRequest(
+    url,                 # url
+    method,              # method
+    headers,             # headers
+    None,                # body
+    None,                # query_params
+    30000                # timeout_ms
+)
+```
+
+After: Builder Pattern
+
+```python
+req = (HttpRequest.Builder(url)
+       .method("POST")
+       .add_header("key", "val")
+       .build())
+```
