@@ -111,3 +111,19 @@ req = (HttpRequest.Builder(url)
        .add_header("key", "val")
        .build())
 ```
+
+
+3. How It Works
+The Builder workflow follows a simple four-step process:
+
+Step 1: Create the Builder
+The client creates a Builder, passing any required parameters to its constructor.
+
+Step 2: Configure Optional Fields
+The client calls setter methods on the Builder for each optional field it needs. Each method returns the Builder itself, enabling chaining. The order of these calls does not matter.
+
+Step 3: Build the Product
+The client calls build(). The Builder passes itself to the Product's private constructor, which copies the configured state into immutable fields.
+
+Step 4: Use the Product
+The client receives a fully constructed, immutable Product. The Builder can be discarded or reused to create a different configuration
