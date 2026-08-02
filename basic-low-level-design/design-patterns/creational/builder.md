@@ -127,3 +127,74 @@ The client calls build(). The Builder passes itself to the Product's private con
 
 Step 4: Use the Product
 The client receives a fully constructed, immutable Product. The Builder can be discarded or reused to create a different configuration
+
+
+
+
+4. Implementing Builder
+Now let's implement the Builder pattern for our HttpRequest example. We create the Product class with a private constructor and a static nested Builder class.
+
+1. Create the Product (HttpRequest) and Builder
+We start by creating the HttpRequest class, the product we want to build. It has multiple fields (some required, some optional), and its constructor will be private, forcing clients to construct it via the builder.
+
+The builder class will be defined as a static nested class within HttpRequest, and the constructor will accept an instance of that builder to initialize the fields.
+
+
+```python
+class HttpRequest:
+    def __init__(self, builder):
+        self.url = builder._url
+        self.method = builder._method
+        self.headers = dict(builder._headers)  # defensive copy
+        self.query_params = dict(builder._query_params)
+        self.body = builder._body
+        self.timeout = builder._timeout
+
+    def __str__(self):
+        return (f"HttpRequest(url='{self.url}', method='{self.method}', "
+                f"headers={self.headers}, query_params={self.query_params}, "
+                f"body='{self.body}', timeout={self.timeout})")
+
+    class Builder:
+        def __init__(self, url):
+            self._url = url  # required
+            self._method = "GET"
+            self._headers = {}
+            self._query_params = {}
+            self._body = None
+            self._timeout = 30000
+
+        def method(self, method):
+            self._method = method
+            return self
+
+        def add_header(self, key, value):
+            self._headers[key] = value
+            return self
+
+        def add_query_param(self, key, value):
+            self._query_params[key] = value
+            return self
+
+        def body(self, body):
+            self._body = body
+            return self
+
+        def timeout(self, timeout):
+            self._timeout = timeout
+            return self
+
+        def build(self):
+            return HttpRequest(self)
+```
+
+
+
+Compare this to the telescoping constructor version. Every field is named. No nulls. No positional guessing. You can set fields in any order, and it is immediately obvious what each request looks like.
+
+What We Achieved
+No telescoping constructors or null arguments. Each field is set by name through a dedicated method.
+Readable, self-documenting code. The chain of method calls reads like a specification of the request.
+Immutable products. Once built, the HttpRequest cannot be modified. Thread-safe by design.
+Easy to extend. Adding a new optional field means adding one method to the Builder. No existing code breaks.
+Flexible ordering. Clients can call builder methods in any order. No positional coupling.
