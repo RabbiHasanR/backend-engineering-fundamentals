@@ -197,4 +197,5 @@ No telescoping constructors or null arguments. Each field is set by name through
 Readable, self-documenting code. The chain of method calls reads like a specification of the request.
 Immutable products. Once built, the HttpRequest cannot be modified. Thread-safe by design.
 Easy to extend. Adding a new optional field means adding one method to the Builder. No existing code breaks.
+
 Flexible ordering. Clients can call builder methods in any order. No positional coupling.
