@@ -10,3 +10,6 @@ Event: an event is just a thing that has happened. like internet of things, buss
 an event in kafka is modeled as a key value pair.  internally, inside kafka when these things are actually store, keys and values ar just sequence of bytes. kafka is internally loosely typed.
 
  key can be complex domain objects, but are often just primitive types like strings or integers.
+
+
+

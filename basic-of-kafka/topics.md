@@ -11,3 +11,18 @@ topics are durable
 retention period is configurable.
 
 logs soted in disk
+
+
+
+kafka topic - organizing your data streams
+
+message categorization: topics group related messages logically
+
+immutable log: messages in a topic are stored sequentially
+
+multi consumer access: multiple consumers can read from the same topic
+
+decoupled communication: producers and consumers interact through topics, not directly
+
+replication: topics ensure data availability with replication across brokers
+
