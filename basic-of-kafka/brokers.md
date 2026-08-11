@@ -58,7 +58,7 @@ Every broker leads one partition and backs up another. Load is spread evenly —
 bootstrap.servers = broker1:9092,broker2:9092,broker3:9092
 ```
 
-**It is the seed list your client uses for its very first connection, only to discover the rest of the cluster.** What actually happens on startup:
+**It is the seed list your client uses for its very first connection, only to discover the rest of the cluster.** Every client does this — producers, consumers, and admin clients alike. What actually happens on startup:
 
 ```text
 1. client picks one address from the list, connects
@@ -77,6 +77,16 @@ Three consequences:
 * **It is not a proxy or gateway.** The broker you bootstrap against is usually *not* the one you end up sending data to. No traffic is forwarded through it.
 * **You don't need to list every broker.** 2–3 is standard even in a 50-broker cluster — any broker knows the full layout.
 * **You list several purely for startup redundancy.** List only one and it's down when your app boots, the client can't start — even if the other 49 brokers are healthy. In Kubernetes or a managed service this is often a single DNS name that resolves to any healthy broker.
+
+### Two things people get wrong
+
+**There is no "bootstrap server" component.** Those entries are ordinary brokers. In the cluster above, broker 1 can be a bootstrap address *and* leader of P0 *and* follower of P2 — all at once. The word is a **role in a moment**, not a type of machine.
+
+**It's the first connection, not the only one.** Metadata is refreshed periodically (`metadata.max.age.ms`, default 5 min) and immediately on errors like `NotLeaderOrFollowerException` after a failover. But those refreshes go to a broker the client is *already* connected to — the bootstrap list only comes back into play if the client loses every connection and has to start over.
+
+**Remember it as:** *`bootstrap.servers` is a phone book entry, not a phone line.* Look up the number once, then call directly.
+
+> Debugging note: the client connects when metadata is first needed, so a wrong `bootstrap.servers` usually shows up as a timeout on your first `send()` — not as an error when the producer is created.
 
 ---
 
@@ -134,6 +144,8 @@ Brokers can also **join or leave without downtime** — but note this means *ser
 | Who does the producer send to? | Directly to the **leader** of that partition |
 | How does it find the leader? | Asks any broker for metadata (that's `bootstrap.servers`) |
 | Is `bootstrap.servers` a proxy? | No — first handshake only, then clients talk straight to leaders |
+| Are bootstrap servers special machines? | No — ordinary brokers. It's a role, not a type |
+| Is it used again after startup? | Only if the client loses every connection; refreshes use already-connected brokers |
 | Is a broker a leader or a follower? | Both — leadership is **per partition** |
 | A broker dies and a partition loses its **leader**? | A follower is promoted; clients reconnect |
 | A broker dies and a partition loses its **follower**? | Nothing moves — it just runs under-replicated |
