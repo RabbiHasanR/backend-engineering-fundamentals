@@ -91,6 +91,24 @@ Different `group.id` → Kafka treats them as completely independent readers, ea
 
 ---
 
+## Crash and restart — where does it resume?
+
+> **A consumer never restarts from 0 just because it died.** It restarts from its last commit.
+
+Consumer commits offset 10, then crashes. The producer keeps writing — log-end offset is now 15, so lag is 5.
+
+```text
+offsets:   ... 8   9   10 | 11  12  13  14  15
+                       ^committed        ^log-end
+                          └── lag = 5 ───┘
+```
+
+On restart it rebalances, asks the broker *"what was my last committed offset?"*, gets `10` back from `__consumer_offsets`, and **resumes at 11** — clearing the lag.
+
+**The one exception:** if it was down long enough that retention deleted the messages *or* expired the committed offset, there's nothing to resume from. Only then does `auto.offset.reset` kick in — see [topics.md](topics.md).
+
+---
+
 ## Queue or pub/sub — your choice
 
 | You want | Do this |
