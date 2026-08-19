@@ -156,7 +156,7 @@ Measure the denominator by running **one consumer against one partition** — in
 
 - Partitions can be **added**, never **removed**.
 - Adding them **breaks the existing key mapping** — `hash(k) % 3` and `hash(k) % 4` give different answers, so old and new events for the same key sit in different partitions and ordering is silently gone for every key that moved.
-- **Compacted topics can never be repartitioned at all** — the old value for a moved key is stranded in its old partition forever, so you end up with two live values for one key.
+- **Compacted topics can never be repartitioned at all** — the old value for a moved key is stranded in its old partition forever, so you end up with two live values for one key. See [log-compaction.md](log-compaction.md).
 
 If you truly must grow an ordered topic: **new topic, not resize.** Create `orders.v2`, dual-write, let consumers drain `orders` to zero lag, then cut over. Safe because a key is never read from both topics at once.
 

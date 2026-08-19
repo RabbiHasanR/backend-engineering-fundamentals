@@ -135,6 +135,9 @@ before compaction:  (user1, A) (user2, X) (user1, B) (user1, C) (user2, Y)
 after  compaction:  (user1, C) (user2, Y)
 ```
 
+Deleting a key needs a **tombstone** — a record with the key and a `null` value. Full details in
+[log-compaction.md](log-compaction.md).
+
 ---
 
 ## Topic vs queue
@@ -165,3 +168,4 @@ That replay ability is the single biggest practical difference — see [Message-
 - [partitioning.md](partitioning.md) — how one topic scales past one machine
 - [brokers.md](brokers.md) — where the partitions physically live
 - [consumers.md](consumers.md) — who tracks the offsets
+- [log-compaction.md](log-compaction.md) — compaction and tombstones in depth
