@@ -2,11 +2,14 @@
 
 > **ksqlDB** is an event-streaming database for Kafka. You submit SQL; it compiles that SQL into a
 > [Kafka Streams](kafka-streams.md) topology and runs it forever on its own cluster of servers,
+
+
 > next to the brokers. The results land back in Kafka topics, and can also be queried directly.
 
 **Remember it as:** *Kafka Streams with the Java taken out and a SQL prompt put in its place.*
 
 It is not a plugin inside the brokers, and it is not a library inside your app. It is a third
+
 thing: a separate, horizontally scalable, fault-tolerant cluster whose entire job is running
 continuous queries.
 
