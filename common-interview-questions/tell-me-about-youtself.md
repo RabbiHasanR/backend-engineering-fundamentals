@@ -42,6 +42,6 @@ I started out solo-building a vulnerability scanner in Python and PostgreSQL, wh
 
 At my current company, the project I'm proudest of: a real-time messaging service that kept failing past 500 concurrent users. I rebuilt it from scratch on WebSockets and Redis — it now handles 3,000+ users reliably on the same infrastructure. Around the same time, I designed our CI/CD pipeline solo, taking us from manually deploying 10+ services to a fully automated, one-click release process.
 
-More recently, still at my current company, I've gotten into AI-powered backend systems — I built a face and content-detection service using a vector database and a custom-trained model, which pushed me to think about architecture differently: inference, embeddings, real-time pipelines.
+More recently, still at my current company, I've gotten into AI-powered backend systems — I built a face detection service that also detects sunglasses, glasses, masks, and nudity from images, using a vector database and a custom-trained model, which pushed me to think about architecture differently: inference, embeddings, real-time pipelines
 
 I'm looking for a role where I can bring that same mindset to a bigger, more complex system — ideally where backend and AI intersect, which is a big part of why [this role/company] caught my attention.
