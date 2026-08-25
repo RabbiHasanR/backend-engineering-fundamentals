@@ -1,21 +1,3 @@
-Part 1 — Who you are now
-"I'm a backend engineer with [X] years of experience, currently working at [Company] where I focus on [domain]."
-One sentence. Set the anchor. Don't start with "So…" or "Um, basically…"
-Part 2 — Core expertise
-"My primary stack is [languages/frameworks], and I've worked extensively with [databases/infrastructure]. I've been responsible for [key ownership area — APIs, services, pipelines, etc.]."
-Name technologies but don't list everything on your CV. Pick what's relevant to this company.
-Part 3 — One strong concrete thing
-"Recently I [built / designed / fixed / scaled] [specific thing] which [measurable outcome or challenge solved]. This taught me a lot about [relevant concept]."
-This is the most important part. One real story beats five bullet points. Numbers help — scale, latency, users, uptime.
-Part 4 — Why you're here
-"I'm now looking for [what you want — bigger scale, product ownership, distributed systems, etc.] and [Company] stood out because [genuine specific reason]."
-End with forward motion. Don't end on "…so that's me." Show intent.
-
-
-
-
-
-
 My answer:
 
 Answer 1:
