@@ -37,3 +37,38 @@ Clean Code: A Handbook of Agile Software Craftsmanship, 2nd Edition
 by Robert C. Martin
 
 link: https://www.oreilly.com/library/view/clean-code-a/9780135398586/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1 The Pragmatic Programmer
+2 Designing Data-Intensive Applications
+3 Clean Code
+4 Refactoring
+5 Software Architecture: The Hard Parts
+6 Database Internals
+7 Staff Engineer
+8 Extreme Ownership
+9 Why Programs Fail
+10 A Philosophy of Software Design
+11 The C Programming Language
+12 Structure and Interpretation of Computer Programs
+13 Introduction to Algorithms
+14 The Art of Computer Programming
+15 Code Complete
+16 Design Patterns
+17 Working Effectively with Legacy Code
+18 Building Microservices
+19 Peopleware
+20 The Mythical Man-Month
