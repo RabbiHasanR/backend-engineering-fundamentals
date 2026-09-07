@@ -1,5 +1,11 @@
-at my current office this is a sports tech commpany who does live socring,broadcasting for several sports.
+At Spordium, when someone signs up, we need to confirm they're a real person, make sure they're not already in our system, and if they're new, register their face so future signups can be checked against them. So this service does two things at once: verification and enrollment.
 
-so we need to handle lots of notification for in appa and push and also need to store these notifications. so handle these huge amount of notification with sync approch is not possible so we need a seperate notification service.
+I designed the full flow, client and server side. The principle was cheap work on the client, expensive work on the server, and never block the user. On the client, we capture three images from three different angles and do quick validation there — live camera, one face, eyes open — before anything reaches our backend. Those three images get uploaded to S3, and the client calls our API, which doesn't do the heavy work itself, it just creates a task and returns right away.
 
-so from my office assigned me in this notificaiton service for design this system.
+A background worker then picks up that task and does the real work. First, it checks the face against our vector database to see if this person already exists in the system. If a match is found, we reject it as a duplicate. If not, we go ahead and register them: we generate embeddings from all three angle images and store them in the vector database, then update the user's status to verified. So every new registration also becomes a future duplicate check for the next person who signs up.
+
+The hardest part was failure handling, since that flow touches several independent systems — S3, the face-matching service, the vector database, and Postgres for the user's status. So every step in the worker is idempotent, and I put a per-user lock around the whole process, so if the worker crashes partway through, a new one can safely resume without double-registering someone or corrupting their status. I also added an hourly job that catches the rare case where a user ends up verified in Postgres but their face vector never actually made it into the database, and resets them so they can retry.
+
+The trade-off is that the user waits a few seconds instead of getting an instant response, but for something that's both an identity check and a registration, I decided that was worth it in exchange for consistency and safety under failure.
+
+It's been running reliably in production since, and duplicate accounts are caught before a profile ever opens. Happy to go deeper into any part of it.
