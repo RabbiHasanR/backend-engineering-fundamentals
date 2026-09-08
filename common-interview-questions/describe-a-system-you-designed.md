@@ -8,4 +8,5 @@ The hardest part was failure handling, since that flow touches several independe
 
 The trade-off is that the user waits a few seconds instead of getting an instant response, but for something that's both an identity check and a registration, I decided that was worth it in exchange for consistency and safety under failure.
 
+
 It's been running reliably in production since, and duplicate accounts are caught before a profile ever opens. Happy to go deeper into any part of it.
