@@ -4,4 +4,6 @@ The company assigned me to solve this problem. I dug into why. There were three 
 
 So I rebuilt the service from scratch using raw WebSockets. I fixed each problem directly: I introduced multiplexing so each client uses a single connection instead of several, I stripped out all synchronous work — including database calls — from the message path so the service does one thing only, deliver messages between client and server, and I reconfigured the timeout settings across Cloudflare, Nginx, and Gunicorn to properly support long-lived connections.
 
+
+
 After the rebuild, the service reliably handles 5,000-plus concurrent users on the same infrastructure — a 6x improvement without adding any new servers.
