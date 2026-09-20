@@ -5,7 +5,7 @@ Producer: what is producer? producer is who produce any event or message and pus
 
 broker: what is broker? broker is a server or prcess where kafka topic partion live. when producer produce any event or message then this message produce to broker or topic or topic partion. so easy work we can say broker is a middle man who store event or message which produce from producer.
 
-topic
+topic: what is topic? topic live in broker. topic is a named which is append only log for event. topic use for same type or group events in same topic. topic responsible for partition, durability, reliability, retention, decoupling but in topic we can not delete,update any event.we only can append to the end of topic
 
 partion
 
