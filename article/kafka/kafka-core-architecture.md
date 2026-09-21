@@ -7,10 +7,17 @@ broker: what is broker? broker is a server or prcess where kafka topic partion l
 
 topic: what is topic? topic live in broker. topic is a named which is append only log for event. topic use for same type or group events in same topic. topic responsible for partition, durability, reliability, retention, decoupling but in topic we can not delete,update any event.we only can append to the end of topic
 
-partion
+partion: what is partion? we can simply say partion is part of smae topic. we can many part from on topic based on hash key or random. partion is solve scalability. because of partion we can handle millions of event and can scale it .
 
 replication
 
 consumer
 
 consumer group
+
+
+
+
+
+
+
