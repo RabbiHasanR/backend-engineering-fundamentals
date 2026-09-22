@@ -9,7 +9,7 @@ topic: what is topic? topic live in broker. topic is a named which is append onl
 
 partion: what is partion? we can simply say partion is part of smae topic. we can many part from on topic based on hash key or random. partion is solve scalability. because of partion we can handle millions of event and can scale it .
 
-replication
+replication: replication is a process so any partion if down or crash then don't lost this partion data because of replication. every partion can be replicate with other partition.
 
 consumer
 
