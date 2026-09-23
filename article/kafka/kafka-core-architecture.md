@@ -11,7 +11,7 @@ partion: what is partion? we can simply say partion is part of smae topic. we ca
 
 replication: replication is a process so any partion if down or crash then don't lost this partion data because of replication. every partion can be replicate with other partition.
 
-consumer
+consumer: what is consumer? consumer is a process who read or get event from specific topic one by one.
 
 consumer group
 
