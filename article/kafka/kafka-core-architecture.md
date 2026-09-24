@@ -13,7 +13,7 @@ replication: replication is a process so any partion if down or crash then don't
 
 consumer: what is consumer? consumer is a process who read or get event from specific topic one by one.
 
-consumer group
+consumer group: what is consumer group? we know consumer is a process , so when multiple consumer process get event from same topic then we can call this consumer group.
 
 
 
