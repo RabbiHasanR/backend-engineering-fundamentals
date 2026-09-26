@@ -18,6 +18,8 @@ consumer group: what is consumer group? we know consumer is a process , so when 
 
 
 
-if you know these core things about kafka then you can easily use kafka in production. these are the basic core things in kafka
+if you know these core things about kafka then you can easily use kafka in production. these are the basic core things in kafka.
+
+here i share kafka cluster how everything works together in a diagram:
 
 
