@@ -30,3 +30,26 @@ These are the three pillers of Observability.
 
 ## What is Telemetry?
 Telemetry is the process of automatically collecting logs, metrics and traces data and transmaittion data from remote or distributed systems to monitor, measure and track the performance or status of those system. Telemetry data provides real-time insights into how different parts of an application are performing, help developers and system administrators observe, troubleshoot, and optimize system without needing to manually check each component.
+
+
+## Problems of traditional approch of Observability?
+
+1. Logs, metrics, and traces live in separate silos
+Each one is a different tool with different data. When something breaks, you jump from the metrics dashboard to the logging system to the tracing tool and try to connect the dots yourself. The real world doesn't have "logging problems" or "metrics problems". It just has problems, but the tools make you think in separate boxes. This puts a heavy mental load on the person on call.
+
+2. Hard to find the full story of one request
+Metrics tell you something happened at this time. Logs tell you what happened. But traditional logs often don't carry trace IDs or span IDs, so you can't easily follow one request across many services. The story of a single operation ends up scattered across many log lines with no clear thread.
+
+3. No common standard, so data quality is poor
+Every tool and library names things differently and formats data differently. Without a shared way to identify related events, correlating data across services is hard, and combining different logging libraries into one clear picture is even harder.
+
+4. Open source libraries can't ship good telemetry
+Most of your app is built from open source libraries, and their maintainers know best what to watch. But if a library adds one vendor's instrumentation, it forces that dependency on everyone. Tracing needs everyone to agree on one format to work at all. The workaround is "hooks and adapters", but then you must keep updating adapters with every new version, and converting between formats adds overhead.
+
+5. Vendor lock-in
+Instrumentation code is mixed into your app everywhere. If you want to switch tools later, you must rip out and rewrite all of it and migrate your dashboards too. That cost keeps teams stuck with the tool they started with.
+
+6. Vendors also struggle
+Building integrations for every library and framework is expensive and can't keep up with how fast software changes. So vendors spend their effort on converting data between formats instead of building better analysis tools. And converted data often loses quality, which makes it harder to analyze.
+
+One-line summary: telemetry is disconnected, inconsistent, and tied to specific vendors, which makes finding the root cause of a problem slow and painful. This is the gap that a standard like OpenTelemetry tries to fill.
