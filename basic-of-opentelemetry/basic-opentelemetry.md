@@ -53,3 +53,31 @@ Instrumentation code is mixed into your app everywhere. If you want to switch to
 Building integrations for every library and framework is expensive and can't keep up with how fast software changes. So vendors spend their effort on converting data between formats instead of building better analysis tools. And converted data often loses quality, which makes it harder to analyze.
 
 One-line summary: telemetry is disconnected, inconsistent, and tied to specific vendors, which makes finding the root cause of a problem slow and painful. This is the gap that a standard like OpenTelemetry tries to fill.
+
+## What is OpenTelemetry?
+
+OpenTelemetry (OTel) is an open source project designed to provied standarized tools and apis for generating, collecting and exporting telemetry data such as tracs, metrics and logs. It proiveds real observability view of the system to the developers and developers can easily find root cause of any issues. and develoepr can easily monitor, troubleshoot and optimize software systems.
+
+Main goal of OPenTelemtry are:
+
+1. combining traching, matrics and logs into a single framework and enabling correlationg of all telemetry data and establishing an open standard for telemetry data.
+
+2. Integration with different backends for processing data easily
+
+3. Supports various languages (java, python, go, etc.) and platforms, and making it versatile for different development environments.
+
+
+
+## What OpenTelemetry is NOT
+
+For better understanding of OpenTelemetry we must need to know what OpenTelemetry is Not.
+
+1. OpenTelementry doesn't replace full-fledged monitoring or observability platform like datadog, new relic or prometheus. it  helps collect and standardize telemetry data so that we can send it to these tools for visualization and analysis.
+
+2. OpenTelemetry doesn't store or visualize data. if only focus on the collection and export of telemetry data to external systems that handle storage and presentation, such as Grafana, Jeager or prometheus
+
+3. OpenTelemetry is a toolkit for collecting and exporting telemetry data, but it requires configurations and integration with other systems. It dosen't automatically provide out of the box monitoring or alerting functionality.
+
+4. While OpenTelemetry helps us collect details performance data, it doesn't automatically optimize application performance. It's diagnostic tool that helps us gather insights for manual tuning.
+
+In essence, OpenTelemetry is an integration and standardization tool for telemetry data, not an all-in-one solution for monitoring, logging, or performance management. It complements other tools by standardizing the data collection process.
