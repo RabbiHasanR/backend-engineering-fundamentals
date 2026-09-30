@@ -81,3 +81,32 @@ For better understanding of OpenTelemetry we must need to know what OpenTelemetr
 4. While OpenTelemetry helps us collect details performance data, it doesn't automatically optimize application performance. It's diagnostic tool that helps us gather insights for manual tuning.
 
 In essence, OpenTelemetry is an integration and standardization tool for telemetry data, not an all-in-one solution for monitoring, logging, or performance management. It complements other tools by standardizing the data collection process.
+
+
+
+## OpenTelemetry Framework
+
+OpenTelemetry Signals & Specification: Quick Recall Notes
+
+Big picture
+
+OTel is organized into signals: tracing, metrics, logging.
+Each signal is a standalone component, but data streams can be linked (e.g., trace IDs in logs).
+Everything is defined in a language-agnostic specification, the core of the project. It keeps all language implementations consistent and interoperable. End users rarely touch it directly.
+
+The spec has 3 parts
+
+Glossary: shared vocabulary so everyone means the same thing by a term.
+Signal design, split into two layers per signal:
+API: conceptual interfaces implementations must follow. It defines how to generate, process, and export telemetry, and keeps implementations compatible.
+SDK: the guide for language implementers. It sets the requirements a language-specific implementation must meet, covering configuration, processing, and exporting.
+Telemetry data rules:
+Semantic conventions: consistent naming and meaning for common metadata, so you don't have to normalize data from different sources.
+OTLP (OpenTelemetry Protocol): the standard wire protocol for sending telemetry (covered later in the chapter).
+
+Memory hook
+
+Signals (traces, metrics, logs) → defined in the Spec → = Glossary + API/SDK + Semantic Conventions + OTLP
+
+API = what you call. SDK = how it's implemented.
+Semconv = consistent names. OTLP = consistent transport.
