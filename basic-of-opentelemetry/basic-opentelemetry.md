@@ -110,3 +110,5 @@ Signals (traces, metrics, logs) → defined in the Spec → = Glossary + API/SDK
 
 API = what you call. SDK = how it's implemented.
 Semconv = consistent names. OTLP = consistent transport.
+
+## core things of opentelemetry
