@@ -86,7 +86,7 @@ In essence, OpenTelemetry is an integration and standardization tool for telemet
 
 ## OpenTelemetry Framework
 
-OpenTelemetry Signals & Specification: Quick Recall Notes
+### OpenTelemetry Signals & Specification: Quick Recall Notes
 
 Big picture
 
@@ -111,4 +111,4 @@ Signals (traces, metrics, logs) → defined in the Spec → = Glossary + API/SDK
 API = what you call. SDK = how it's implemented.
 Semconv = consistent names. OTLP = consistent transport.
 
-## core things of opentelemetry
+### Vendor-Agnostic, Language-Specific Instrumentation
