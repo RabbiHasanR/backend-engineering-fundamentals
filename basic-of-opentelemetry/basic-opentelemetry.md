@@ -111,6 +111,167 @@ Signals (traces, metrics, logs) → defined in the Spec → = Glossary + API/SDK
 API = what you call. SDK = how it's implemented.
 Semconv = consistent names. OTLP = consistent transport.
 
-OTL
 
 ### Vendor-Agnostic, Language-Specific Instrumentation
+
+**What is this about?**
+It explains how OpenTelemetry is built in each programming language (Python, Java, etc.), and *why* it is split into two parts: **API** and **SDK**.
+
+**The two parts**
+
+* **API** = the "buttons" you press in your code, like `start_span()` or `counter.add()`. It only defines *what you can call*. It does nothing by itself.
+* **SDK** = the "engine" behind the buttons. It does the real work: creates, processes, and sends telemetry. The official SDK is the reference one, but you can write your own.
+
+**How it works**
+
+1. Your app starts and **registers a provider** for each signal (trace, metric, log). The provider is the SDK.
+2. When code calls the API, the call is forwarded to that provider.
+3. If you did **not** register any provider, a fallback provider is used, which does **nothing** (**no-op**). No error, no cost.
+
+**Ways to add instrumentation (all use the API)**
+
+* **Zero-code / automatic**: no code changes.
+* **Instrumentation libraries**: simple integration, small or no code changes.
+* **Manual**: you write the code yourself, for full control.
+
+**Why split API and SDK? (the main point)**
+Imagine you build an open source library, like a database driver, and you want to add observability to it.
+
+* The **API is small and safe**. Any library can depend on it without causing trouble.
+* The **SDK is big and complex**, with many dependencies. If libraries forced it on everyone, it could **conflict** with the user's own packages.
+
+So the split gives you three benefits:
+
+1. **Libraries can ship with built-in instrumentation** easily (they only depend on the light API).
+2. **The app owner chooses the SDK**, so they can fix dependency conflicts or use a different implementation.
+3. **No cost if unused**: if the user does not want telemetry, the no-op provider runs and adds almost no overhead.
+
+**Code example**
+
+SDK (once, at app startup):
+
+```python
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+provider = TracerProvider()                                  # SDK = the engine
+provider.add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4317"))
+)
+trace.set_tracer_provider(provider)                          # register the provider
+```
+
+API (anywhere in your code):
+
+```python
+from opentelemetry import trace                              # API = the buttons
+
+tracer = trace.get_tracer(__name__)
+
+def create_order(order_id):
+    with tracer.start_as_current_span("create-order") as span:
+        span.set_attribute("order.id", order_id)
+```
+
+If the SDK block is never run, `create_order` still works and tracing is a no-op.
+
+**Easy memory trick**
+**API** = the plug socket on the wall (same everywhere, light, safe).
+**SDK** = the electricity supply (heavy, your choice, you connect it).
+No supply connected? The socket just does nothing.
+
+**One line to remember:**
+*Libraries use the light API. Apps choose the SDK. No SDK means no-op.*
+
+
+
+
+
+
+
+
+### Telemetry Processor (Standalone Component)
+
+**What is this about?**
+Instrumentation (API + SDK) only *creates and emits* telemetry. After that, someone must **manage the data and deliver it to backends**. This is the operator's job, and OpenTelemetry gives a standalone tool for it: the **OpenTelemetry Collector** (similar in idea to Fluent Bit).
+
+**The full flow**
+
+```
+Sources → Collector (receive → process → export) → Backends → Analysis
+```
+
+**1. Collect (Receivers)**
+Gather data from many sources: apps using the OTel SDK (via OTLP), Prometheus metrics, log files, other agents.
+
+**2. Process (Processors)**
+The Collector cleans and prepares the data:
+- **Parse / convert** into a common format
+- **Enrich** with extra metadata (service name, environment, host)
+- **Filter** out useless data to cut noise and storage cost
+- **Normalize / transform** the data
+- **Buffer** for resilience and performance (no data loss if a backend is slow or down)
+
+**3. Transmit (Exporters)**
+- **Route** different data to different places
+- **Forward** to one or many backends
+
+**4. Analyze (Backends)**
+Backends store and show the data, for example: Jaeger or Tempo (traces), Prometheus (metrics), Loki (logs), Grafana (dashboards).
+
+**Easy memory trick**
+
+> **Collector = a post office.**
+> It **receives** letters from many senders, **sorts and stamps** them (process), then **delivers** them to the right addresses (backends).
+
+**One line to remember:**
+*Receivers collect → Processors clean → Exporters deliver to backends → Backends let you analyze.*
+
+
+
+
+
+### Wire Protocol (OTLP)
+
+**What is this about?**
+After telemetry is created (SDK) and managed (Collector), it must travel across the network: from apps to the Collector to backends. OpenTelemetry defines one standard for this: **OTLP (OpenTelemetry Protocol)**.
+
+**What OTLP defines**
+- **Encoding**: how data is represented (the format)
+- **Transport**: how data is sent over the network
+
+It is **open source and vendor-neutral**, so it works across the whole observability stack.
+
+**Why OTLP is preferred**
+- The **Collector uses OTLP internally**, so sending OTLP means **no format conversion**, which saves cost and keeps data consistent.
+- The format matches OTel ideas: attributes follow **semantic conventions**, and signals can be **correlated** (trace ↔ logs ↔ metrics).
+- The Collector can also receive and export other formats (Prometheus, Zipkin), but OTLP is the best choice.
+
+**Why it is good for the ecosystem**
+- **Most backends support OTLP out of the box.**
+- Tool developers no longer build many adapters for many proprietary formats.
+- Result: **better interoperability** between tools.
+
+**Transport options (3)**
+- HTTP/1.1
+- HTTP/2
+- gRPC
+
+Choose based on performance, reliability, and security needs.
+
+**Encoding options (2)**
+
+| Format | Good | Bad |
+|---|---|---|
+| **Protobuf** (binary, common default) | Compact, fast, supports schema changes without breaking compatibility | Not human-readable |
+| **JSON** | Human-readable | Bigger size, more network traffic |
+
+**Easy memory trick**
+
+> **OTLP = a universal shipping container.**
+> Any app can pack data in it, any backend can open it, so nobody needs special adapters.
+
+**One line to remember:**
+*OTLP is the one standard language (Protobuf or JSON, over HTTP or gRPC) that every OTel component and most backends understand.*
