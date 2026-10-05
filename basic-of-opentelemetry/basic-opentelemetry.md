@@ -275,3 +275,9 @@ Choose based on performance, reliability, and security needs.
 
 **One line to remember:**
 *OTLP is the one standard language (Protobuf or JSON, over HTTP or gRPC) that every OTel component and most backends understand.*
+
+
+
+
+## Instrumentation
+
