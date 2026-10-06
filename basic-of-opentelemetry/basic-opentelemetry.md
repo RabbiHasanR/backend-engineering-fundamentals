@@ -281,3 +281,20 @@ Choose based on performance, reliability, and security needs.
 
 ## Instrumentation
 
+Instrumentation refers to the process of adding code or using tools to collect telemetry data (such as logs, metrics, and traces) from an application.
+
+Basically instrumentation is adding someting in application code for collect telemetry data to make any non observed application into an observable application.
+
+However, instrumentation is often highly dependent on the programming language and framework in use. This means that instrumentation code tends to be proprietary, tailored to the specific tools, libraries and achitecture of each application. As a result developers mustt often implement custom instrumentation for each language or framework they work with, which can lead to challenges in maintaining consistency across different parts of a system, expecially in polyglot(multi language) environments.
+
+It also means that the more specific the information you want to extract from your application, the more specific your instrumentation effort has to be.
+
+The instrumentation also defines which kind of telemetry signals are being handled.
+
+### Categories for OpenTelemetry Instrumentation
+
+a. Automatic instrumentation(zero code): No code change require, low effort, limited control, minimal customization
+
+b. Instrumentation Libraries: Can be need minimal or moderate code change require, Moderate effort, medium control(some configuration), Moderate framework level customization.
+
+c. Manual Instrumentation: Requires explicit code changes. this involves directly adding OpenTelemetry API calls in the source code. high effort, full control, full customization.
