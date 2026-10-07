@@ -298,3 +298,6 @@ a. Automatic instrumentation(zero code): No code change require, low effort, lim
 b. Instrumentation Libraries: Can be need minimal or moderate code change require, Moderate effort, medium control(some configuration), Moderate framework level customization.
 
 c. Manual Instrumentation: Requires explicit code changes. this involves directly adding OpenTelemetry API calls in the source code. high effort, full control, full customization.
+
+
+## Opentelemetry Collector
