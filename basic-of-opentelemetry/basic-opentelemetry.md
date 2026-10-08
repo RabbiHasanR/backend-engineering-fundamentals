@@ -300,4 +300,11 @@ b. Instrumentation Libraries: Can be need minimal or moderate code change requir
 c. Manual Instrumentation: Requires explicit code changes. this involves directly adding OpenTelemetry API calls in the source code. high effort, full control, full customization.
 
 
+##  The Four Golden Signals of Metrics  Observability
+
+Traffic: volume of requests handled by the system
+Errors: rate of failled request
+Latency: the amount of time it takes to serve a request
+Saturation: how much of a resource is being consumed at a given time
+
 ## Opentelemetry Collector
