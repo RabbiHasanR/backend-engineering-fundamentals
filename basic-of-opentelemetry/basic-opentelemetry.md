@@ -308,3 +308,195 @@ Latency: the amount of time it takes to serve a request
 Saturation: how much of a resource is being consumed at a given time
 
 ## Opentelemetry Collector
+
+The collector is a key component of opentelemetry that manages how telemetry is processed and forwarded.
+
+How are these capabilities different from the SDK?
+
+With the SDK, the telemetry pipeline was defined in the application code. Depending on your use case, this approch can be perfectly fine. A Collector, on the other hand, is a binary written in Go, that runs as a separate, standalone process. It provides a flexible, configurable and vendor agnostic system to process telemetry outside the application. It is essentially a broker between a telemetry source and the backend storing the data.
+
+
+
+**Benefits of the Collector**
+
+1. **Separation of concerns**: Developers only generate telemetry. What happens to it afterwards (where it goes, in what format) is not their problem.
+
+2. **No code changes for config**: Operators can change the telemetry setup without touching application code.
+
+3. **One central place to maintain**: Without a Collector, the settings (destination, format, processing) are spread across many codebases owned by different teams. With one, they live in a single location.
+
+4. **Consistency across services**: Telemetry pipelines are usually the same for all apps, so managing them centrally keeps every service in sync.
+
+5. **Leaner SDK config**: The SDK in each app only needs to know "send to the Collector".
+
+6. **No redeploy for pipeline changes**: You change the Collector config, and the applications keep running untouched.
+
+7. **Easier troubleshooting**: If telemetry processing breaks, there is only one place to look.
+
+8. **Less load on the app**: Processing and forwarding happen in another process, so the app spends its CPU and memory on real work.
+
+**In short:** the app only produces telemetry, and the Collector handles everything after that.
+
+
+
+
+
+
+
+
+A Collector pipeline is the path telemetry takes through the Collector, and it always runs in the same order:
+
+```
+Receivers  →  Processors (in order)  →  Exporters
+(data in)     (change the data)         (data out)
+```
+
+## The three components
+
+**Receiver (the entry point):** It accepts data from outside, for example OTLP from your SDKs, or scraped Prometheus metrics. It converts the data into the Collector's internal format.
+
+**Processor (the middle step):** It modifies the data before it leaves. The main reasons to process are:
+
+- **Quality:** add, rename or delete attributes.
+- **Routing:** send data to different backends based on attributes.
+- **Cost:** drop unwanted data, or keep only a sample of traces.
+- **Security:** remove sensitive fields.
+- **Flow control:** batching and memory limits.
+
+Processors run one after another, so **order matters**. A common order is memory limiter first, then filtering or sampling, then batch last.
+
+**Exporter (the exit point):** It converts the internal format into the protocol the backend needs and sends it to one or more destinations. OTLP exporters are built in, and the `collector-contrib` repository has exporters for backends that don't accept OTLP.
+
+## The YAML config
+
+The file has two parts: first you **define** the components, then you **wire them together** in pipelines. A component that is defined but not used in any pipeline does nothing.
+
+```yaml
+# 1. Define components (each has an ID: type or type/name)
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 500
+  attributes/env:            # type "attributes", name "env"
+    actions:
+      - key: environment
+        value: production
+        action: insert
+  batch:
+
+exporters:
+  otlp/tempo:                # traces backend
+    endpoint: tempo:4317
+  prometheus:                # exposes metrics for scraping
+    endpoint: 0.0.0.0:8889
+
+# 2. Wire them into pipelines (ID: signal type or signal/name)
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, attributes/env, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+```
+
+Exact component names and fields vary a little between Collector versions, so check the docs for the version you install.
+
+## How pipelines combine data
+
+- **Several receivers in one pipeline:** their streams are merged before the processors.
+- **Several exporters in one pipeline:** each exporter gets a copy of the data.
+- **The same receiver in several pipelines:** each pipeline gets its own copy (like `otlp` above).
+- **The same exporter in several pipelines:** the streams are merged into one.
+
+One correction to the text you pasted: it lists retry under processors, but in the Collector retry is configured on the exporter (`retry_on_failure`), not as a separate processor.
+
+
+
+
+### Different ways to deploy Collector
+
+
+There are three ways to deploy a Collector, and they can be combined.
+
+| | Sidecar | Node agent | Standalone service |
+|---|---|---|---|
+| **Where it runs** | One container beside each app, in the same pod | One per node, shared by all apps on that node | A separate pool of Collectors behind a load balancer |
+| **Main benefit** | The app offloads telemetry over localhost, which is fast and reliable | Fewer connections, and it can collect host-level metrics and add resource attributes | Scales with demand, handles spikes, and doesn't compete with apps for resources |
+| **Main drawback** | Uses the app machine's CPU and memory, and capacity is tied to the number of pods | Still shares the node's resources, and data is dropped if it gets overloaded | Adds network latency and is one more service to run |
+
+**In production** these are often combined. Because Collectors talk to each other in OTLP, you can chain them: a sidecar or node agent does light work such as quick offload and basic filtering, then forwards to a standalone Collector for heavier processing.
+
+Tail sampling is the classic example of work for the standalone tier. It needs to see all spans of a trace, and a sidecar only sees the spans from one pod.
+
+There is no single best setup, because the right one depends on your system. Outside Kubernetes the same ideas apply: a node agent is simply one Collector per host or VM.
+
+
+
+## When to use which
+
+**Sidecar: use when**
+- Each app needs its own telemetry config, for example different teams or different rules per service.
+- You want the fastest and most reliable handoff, over localhost.
+- You run on a platform where you can't install anything on the node, such as AWS Fargate.
+
+**Node agent: use when**
+- You want host-level data such as CPU, memory, disk and log files.
+- All apps on a node can share the same config.
+- You want fewer Collectors to manage than one per pod.
+
+**Standalone service (gateway): use when**
+- You need tail sampling or other heavy processing.
+- Telemetry volume spikes and you need to scale Collectors independently of the apps.
+- You want backend credentials and export config in one central place.
+
+**Combined: use when** you are in production with many services. A local agent offloads quickly, and a gateway does the heavy work.
+
+## Example workflows
+
+**Sidecar**
+```
+App (SDK) ──localhost──→ Sidecar Collector ──→ Backend
+(same pod)               (batch, basic filter)
+```
+
+**Node agent**
+```
+App A (SDK) ─┐
+App B (SDK) ─┼─→ Node Agent Collector ──→ Backend
+Host metrics ─┘   (add host/resource attributes, batch)
+```
+
+**Standalone service**
+```
+App A (SDK) ─┐                   ┌─ Collector 1 ─┐
+App B (SDK) ─┼─→ Load Balancer ─→├─ Collector 2 ─┼─→ Backend
+App C (SDK) ─┘                   └─ Collector 3 ─┘
+                                 (scale up or down with load)
+```
+
+**Combined (typical production)**
+```
+App (SDK) → Sidecar / Node Agent ──OTLP──→ Gateway Collector → Backends
+            (quick offload,                (tail sampling,      (traces,
+             host attributes,               scrubbing,           metrics,
+             light filtering)               routing)             logs)
+```
+
+Inside every Collector box above, the same pipeline still runs:
+
+```
+Receivers  →  Processors (in order)  →  Exporters
+(data in)     (change the data)         (data out)
+```
+
+If you are starting out, a single standalone Collector is the simplest first step. Add node agents when you need host metrics, and scale the gateway out when volume grows.
