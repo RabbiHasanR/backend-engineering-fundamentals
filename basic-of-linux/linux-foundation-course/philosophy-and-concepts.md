@@ -143,19 +143,75 @@ Services can start only when they're needed (for example, when a connection arri
 Firmware finds the boot loader, the boot loader loads the kernel and initramfs, the initramfs prepares the real disk, systemd (PID 1) starts all services in parallel, and you get a login prompt or a desktop.
 
 
-## Common Linux filesystem types: Conventional disk filesystems, flash storage filesystems, special purpose filesystems, database filesystems
+# Linux Filesystems and Directory Hierarchy
 
+## 1. Filesystem types
 
-## Linux Filesystem hierarchy Standard: /, /home, /root, /etc, /bin and /usr/bin, /sbin and /usr/sbin, 
-## /bin and /usr/lib, /var, /tmp, /dev, /proc, /sys, /boot, /run
+| Type | What it is | Examples | Used for |
+|---|---|---|---|
+| **Conventional disk** | Stores files on hard disks and SSDs | **ext4**, XFS, Btrfs, JFS, NTFS, vfat/exFAT | ext4 is the default on Ubuntu/Debian; XFS is the default on RHEL; vfat/exFAT for USB drives shared with Windows |
+| **Flash storage** | Designed for raw flash chips, spreading writes to reduce wear | UBIFS, JFFS2, YAFFS, F2FS | Routers, IoT devices, embedded boards, Android phones |
+| **Special purpose** | Virtual filesystems that live in memory, not on disk | procfs (`/proc`), sysfs (`/sys`), tmpfs, devtmpfs, squashfs | Showing kernel/process info, fast temporary files, read-only images (like Snap packages) |
+| **Database** | Store files like database records, so they can be searched by metadata instead of only by path | Oracle DBFS | Rare; mostly specialized enterprise systems |
 
-key subdirectories of /usr
+**Quick example:** your EC2 root disk is most likely **ext4** (Ubuntu) or **XFS** (Amazon Linux). When you run `cat /proc/cpuinfo`, you're reading **procfs**, which is not a real file on disk.
 
-/usr/bin,/usr/bin, /usr/lib, /usr/share, /usr/local
+## 2. Filesystem Hierarchy Standard (FHS)
 
+Everything starts from **`/`** (root). There are no drive letters like `C:` or `D:`.
 
-A partition is a logical part of the disk.
+| Directory | Purpose | Example |
+|---|---|---|
+| **/** | Top of the whole tree; everything lives under it | — |
+| **/home** | Personal folders for normal users | `/home/rabbi/projects` |
+| **/root** | Home folder of the root (admin) user, *not* the same as `/` | `/root/.bashrc` |
+| **/etc** | System-wide configuration files | `/etc/nginx/nginx.conf`, `/etc/hosts` |
+| **/bin**, **/usr/bin** | Essential commands for all users | `ls`, `cp`, `cat`, `python3` |
+| **/sbin**, **/usr/sbin** | System admin commands (usually need sudo) | `fdisk`, `reboot`, `iptables` |
+| **/lib**, **/usr/lib** | Shared libraries that programs need (like `.dll` files on Windows), plus kernel modules | `/lib/modules/`, `libc.so` |
+| **/var** | Variable data that grows and changes | `/var/log/syslog`, `/var/lib/postgresql` |
+| **/tmp** | Temporary files, often cleared on reboot | Upload or cache scratch files |
+| **/dev** | Device files (hardware represented as files) | `/dev/sda` (disk), `/dev/null` |
+| **/proc** | Virtual: live info about processes and the kernel | `/proc/meminfo`, `/proc/1234/` |
+| **/sys** | Virtual: info about hardware and drivers | `/sys/class/net/` |
+| **/boot** | Files needed to boot: kernel, initramfs, GRUB | `vmlinuz`, `initrd.img` |
+| **/run** | Runtime data since the last boot, stored in RAM | PID files, sockets like `/run/docker.sock` |
 
-By dividing the hard disk into partitions, data can be grouped and separated as needed. When a failure or mistake occurs, only the data in the affected partition will be damaged, while the data on the other partitions will likely survive.
+**Note:** on modern distros, `/bin`, `/sbin` and `/lib` are just **links** to their `/usr` versions, so both paths point to the same place.
 
-Determining the appropriate distribution to deploy requires that you match your specific system needs to the capabilities of the different distributions.
+### Key subdirectories of /usr
+
+`/usr` holds most user programs and read-only data.
+
+| Directory | Purpose | Example |
+|---|---|---|
+| **/usr/bin** | Most user commands | `git`, `vim`, `python3` |
+| **/usr/sbin** | Non-essential admin commands | `nginx`, `sshd` |
+| **/usr/lib** | Libraries for programs in `/usr/bin` | Python libs, `.so` files |
+| **/usr/share** | Shared data that isn't architecture-specific | Man pages, icons, docs |
+| **/usr/local** | Software **you** install manually, kept separate from the distro's packages | `/usr/local/bin/node_exporter` |
+
+**Rule of thumb:** packages installed with `apt`/`dnf` go in `/usr`. Things you build or download yourself go in `/usr/local` (or `/opt`).
+
+## 3. Partitions
+
+A **partition** is a logical section of a disk, so one physical disk can act like several separate disks.
+
+**Why use them:**
+- **Isolation:** if one partition fills up or gets corrupted, the others stay safe.
+- **Example:** put `/var` on its own partition. If logs grow out of control and fill `/var`, the root `/` still has space and the system keeps running.
+- Common split: `/boot`, `/` (root), `/home`, `/var`, and swap.
+
+You can check your partitions with `lsblk` or `df -h`.
+
+## 4. Choosing a distribution
+
+Pick a distro by matching it to your needs:
+- **Server stability and enterprise support:** RHEL, Rocky Linux, Ubuntu LTS
+- **Cloud and AWS:** Ubuntu or Amazon Linux
+- **Latest features and desktop use:** Fedora, Ubuntu
+- **Lightweight or embedded:** Alpine (often used in Docker images), Debian minimal
+
+## One-line summary
+
+Filesystem **types** decide *how* data is stored (ext4 for disks, UBIFS for flash, procfs for virtual kernel info). The **FHS** decides *where* things go (configs in `/etc`, logs in `/var`, user files in `/home`), and partitions keep these areas safely separated.
