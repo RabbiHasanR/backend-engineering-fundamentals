@@ -215,3 +215,6 @@ Pick a distro by matching it to your needs:
 ## One-line summary
 
 Filesystem **types** decide *how* data is stored (ext4 for disks, UBIFS for flash, procfs for virtual kernel info). The **FHS** decides *where* things go (configs in `/etc`, logs in `/var`, user files in `/home`), and partitions keep these areas safely separated.
+
+
+What is scripting in linux?
