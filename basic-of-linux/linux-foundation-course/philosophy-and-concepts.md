@@ -220,3 +220,7 @@ Filesystem **types** decide *how* data is stored (ext4 for disks, UBIFS for flas
 What is scripting in linux?
 
 system configuration
+
+
+
+Continue to learn about linux
