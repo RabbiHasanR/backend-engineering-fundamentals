@@ -224,3 +224,6 @@ system configuration
 
 
 Continue to learn about linux
+
+
+what is linux scripting
