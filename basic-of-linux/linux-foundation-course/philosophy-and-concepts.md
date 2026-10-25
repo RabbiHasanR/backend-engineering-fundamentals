@@ -227,3 +227,5 @@ Continue to learn about linux
 
 
 what is linux scripting
+
+linux command line
