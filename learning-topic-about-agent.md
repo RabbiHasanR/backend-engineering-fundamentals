@@ -137,3 +137,191 @@
 
 **Key takeaway**
 - Good prompt engineering isn't about knowing the perfect prompt. It's about steadily refining toward the result you need.
+
+
+
+
+
+
+
+
+**Summarizing with Prompts **
+
+**Why it matters**
+- There's too much text to read. LLM summaries let you skim far more content, such as many product reviews on an e-commerce site.
+
+**Prompt tricks**
+- **Limit the length:** e.g. "summarize in at most 30 words." You can also limit sentences or characters.
+- **Use delimiters** around the text to summarize, so the model knows exactly what to work on.
+- **Set the purpose or audience:** tell it who the summary is for, so it puts the most relevant details first.
+  - For the shipping department: "focus on shipping and delivery."
+  - For the pricing department: "focus on price and perceived value."
+- **Summarize vs. extract:**
+  - A *summary* still includes other details besides the focus area.
+  - Use *"extract"* when you want only the relevant information, e.g. "extract only the shipping-related feedback."
+
+**Using it in a workflow**
+- Put multiple reviews in a list and loop over them with the same prompt (e.g. "at most 20 words each").
+- This is useful for a **dashboard**: show short summaries of hundreds of reviews and let users click through to the full original.
+
+**Key takeaway**
+- Tailor the prompt to the purpose: control length, name the audience, and choose between *summarize* and *extract* depending on how focused you want the output.
+
+
+
+
+
+
+
+**Inferring with Prompts**
+
+**What "inferring" means**
+- The model takes text as input and analyzes it: sentiment, emotions, names, labels, topics.
+- **Big advantage over traditional ML:** no labeled data, training, or deploying separate models. One model and one API handle many tasks, using only prompts.
+
+**Prompt tricks for developers**
+- **Constrain the output for easy parsing:** e.g. "answer in a single word: positive or negative" instead of a full sentence.
+- **Limit list size:** e.g. "include no more than five items."
+- **Ask yes/no classification questions:** e.g. "Is the writer expressing anger?" This is useful for flagging upset customers for support.
+- **Extract specific fields as JSON:** e.g. keys "Item" and "Brand," which load straight into a Python dict.
+- **Specify data types:** e.g. "format anger as a boolean" so you get `false`, not `"false"`.
+- **Combine many extractions in one prompt:** get sentiment, anger, item, and brand in a single call instead of 3–4 separate calls. This saves cost and latency.
+- **Infer topics:** e.g. "determine five topics, each 1–2 words, comma-separated."
+
+**Zero-shot classification**
+- Give a fixed list of topics and ask which ones appear in the text, returning 0/1 for each topic.
+- This works with no labeled training examples, which is why it's called zero-shot.
+- **Use case:** an alert system, e.g. print "ALERT: New NASA story!" when the topic matches.
+
+**Production tip**
+- A list output like `[1, 0, 1]` is **brittle**, because LLM output can be inconsistent.
+- For production, **ask for JSON** so parsing is reliable.
+
+**Key takeaway**
+- Tasks that once took days or weeks of ML work can now be built in minutes with prompts. Design your outputs (single words, booleans, JSON) so your code can process them reliably.
+
+
+
+
+
+
+**Transforming with Prompts**
+
+**What "transforming" means**
+- Converting input text into a different form: another language, another tone, another format, or corrected grammar.
+- Many tasks that once needed painful regex code can now be done with a few prompts.
+
+**1. Translation**
+- Translate directly: e.g. "Translate the following English text to Spanish."
+- **Detect the language:** e.g. "Tell me what language this is."
+- **Translate into several languages at once:** e.g. French, Spanish, and even "English pirate."
+- **Formal vs. informal:** ask for both forms in languages where register depends on the listener.
+- **Universal translator workflow:** loop over user messages, detect each language, then translate to the target languages (e.g. English and Korean).
+- **Tip:** to get just the language name instead of "This is French," say "respond with only one word" or ask for JSON.
+
+**2. Tone transformation**
+- Rewrite for a different audience: e.g. "Translate from slang to a business letter."
+
+**3. Format conversion**
+- Convert between JSON, HTML, XML, Markdown, and so on.
+- **Describe both input and output formats** in the prompt: e.g. "Translate this Python dictionary from JSON to an HTML table with column headers and a title."
+
+**4. Spelling and grammar checking**
+- "Proofread and correct the following text." This is especially useful when writing in a non-native language.
+- **Handle the no-error case:** e.g. "If you don't find any errors, say 'No errors found'."
+- **Show the changes:** use a diff tool (e.g. the `redlines` Python package) to compare the original with the corrected text.
+- Iterate on the prompt until it behaves reliably every time.
+
+**5. Combining multiple transformations**
+- One prompt can do several things together: e.g. proofread, make it more compelling, follow APA style, target an advanced reader, and output in Markdown.
+
+**Developer tips**
+- Use delimiters (```, """, < >). Any is fine as long as the separation is clear.
+- Constrain output (one word, JSON) when code will process it.
+- Loop over inputs with the same prompt for batch processing.
+
+**Key takeaway**
+- Clearly state the source, the target (language, tone, format, style), and any edge-case handling. The model handles the rest.
+
+
+
+
+
+
+
+
+**Expanding with Prompts**
+
+**What "expanding" means**
+- Turning short input (instructions, a topic list) into longer text, such as an email or essay.
+- **Good uses:** brainstorming partner, personalized replies.
+- **Responsible use:** don't use it for harmful things like mass spam.
+
+**Example: AI customer-service email reply**
+- **Assign a role:** e.g. "You are a customer service AI assistant."
+- **Use delimiters** around the customer review.
+- **Add conditional logic in the prompt:**
+  - Positive or neutral sentiment: thank the customer.
+  - Negative sentiment: apologize and suggest contacting customer service.
+- **Ask for specific details:** e.g. "use specific details from the review" so the reply feels personal.
+- **Set tone and length:** e.g. "concise and professional tone."
+- **Be transparent:** sign as "AI customer agent." Users should know when text is AI-generated.
+- **Chain tasks:** first extract sentiment (as in the inferring lesson), then write the reply. Or do both in one prompt.
+
+**Temperature parameter**
+- Controls the **randomness or exploration** of the model's output.
+- **Temperature 0:** always picks the most likely next word, so the same prompt gives the same output.
+  - Use it for **reliable, predictable** applications (the recommended default).
+- **Higher temperature (e.g. 0.7):** sometimes picks less likely words, so outputs differ on every run.
+  - Use it for **creative** tasks where you want variety.
+- At higher temperatures the model is more creative but also more "distractible," and responses diverge more as they get longer.
+
+**Key takeaway**
+- For generated text, give a role, conditions, tone, and transparency rules in the prompt, and choose the temperature based on whether you need consistency or creativity.
+
+
+
+
+
+
+
+
+
+**Building a Chatbot with Prompts**
+
+**Chat completions format**
+- Chat models take a **list of messages** as input and return one **assistant message** as output.
+- The format suits multi-turn conversations, but it also works for single-turn tasks.
+
+**Message roles**
+- **System:** sets the overall behavior and persona (e.g. "You are an assistant that speaks like Shakespeare").
+  - It's like whispering in the assistant's ear: it guides responses without the user seeing it.
+  - It lets the developer frame the conversation without making the instruction part of the chat.
+- **User:** the person's messages.
+- **Assistant:** the model's replies. The response object has `role: assistant` and `content`.
+
+**Context and memory**
+- Each API call is **stateless**. The model doesn't remember earlier calls.
+- To make it "remember," **send the full conversation history** (all previous user and assistant messages) with every call.
+- Example: when the name "Isa" was in earlier messages, the model knew it; without that history, it didn't.
+
+**Building OrderBot (pizza ordering)**
+- Keep a `context` list: **append every user message and assistant reply** and send the growing list on each call.
+- The **system prompt defines the whole workflow:**
+  - Greet, collect the order, ask pickup or delivery.
+  - Summarize the order and ask if anything else is needed.
+  - Get the address if it's a delivery, then collect payment.
+  - Clarify all options, extras, and sizes so each item is uniquely identified.
+  - Respond in a short, friendly, conversational style.
+  - **Include the menu** (the knowledge it needs) right in the system message.
+
+**Converting the conversation to structured output**
+- At the end, add one more instruction (system or user message): "Create a JSON summary of the order," listing the fields (pizza, toppings, drinks, sides, total price).
+- The resulting JSON can go straight to an order system.
+
+**Temperature tips**
+- **Low temperature** for structured or predictable output, such as the JSON summary or a customer-service bot.
+- **Higher temperature** for more varied, creative conversation.
+
+**Key takeaway**
+- The system message is your main control tool: persona, rules, workflow steps, and knowledge. Always pass the full context to keep the conversation coherent, and end with a structured-output instruction when code needs the data.
