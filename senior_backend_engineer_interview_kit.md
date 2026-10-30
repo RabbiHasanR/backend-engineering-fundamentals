@@ -677,6 +677,7 @@ Questions only. Answers are in the sections above.
 19. How do you lead 2–3 engineers? How do you help a struggling junior?
 20. One repository, Many engineers, many modules, continuous deploys — how do you keep it safe?
 
+
 ### 5. AI & security
 
 21. How do you use AI tools day to day? What for, what not, and why?
