@@ -127,3 +127,48 @@ Chat | Essay writing | Summarization | Translation | Code generation | Entity ex
 - **Named Entity Recognition (NER)**: identifying people, places, and other entities in text; a type of word classification
 - **Information retrieval**: extracting specific information from text
 - **Augmenting LLMs**: connecting a model to external data or APIs to extend its knowledge and actions
+
+
+
+
+# Lesson 4: Text Generation Before Transformers
+
+## What This Lecture Discusses
+- How older language models (**RNNs**) worked and why they were limited
+- Why language is hard for machines (**ambiguity**)
+- How the **transformer architecture (2017)** solved these problems
+
+## Core Idea
+- **Generative algorithms are not new.** Earlier models used **Recurrent Neural Networks (RNNs)**.
+- **RNN limitations:**
+  - Seeing only a few previous words leads to **poor predictions**.
+  - To see more words, **compute and memory grow exponentially**.
+  - Even when scaled, they **still couldn't see enough context** to predict well.
+- **Good prediction needs context from the whole sentence, or even the whole document.**
+- **Language is complex:**
+  - **Homonyms**: one word, many meanings ("bank" as a river bank or a money bank)
+  - **Syntactic ambiguity**: unclear sentence structure ("The teacher taught the student with the book." Who has the book?)
+- **2017: "Attention Is All You Need"** (Google and University of Toronto) introduced the **transformer**, which changed everything.
+- **Why transformers won:**
+  1. **Scale efficiently** on multi-core **GPUs**
+  2. **Process input in parallel**, which enables much **larger training datasets**
+  3. **Learn to pay attention** to the **meaning of words**
+
+## Main Framework
+**RNN vs Transformer**
+
+| | RNN | Transformer |
+|---|---|---|
+| Context | Only a few previous words | Whole sentence or document |
+| Scaling | Compute/memory grow exponentially | Scales efficiently on GPUs |
+| Processing | Sequential | Parallel |
+| Understanding | Limited | Uses **attention** to understand meaning |
+
+## Key Terms
+- **RNN (Recurrent Neural Network)**: an older architecture that processes text sequentially; limited context
+- **Next-word prediction**: predicting the next word from previous words
+- **Homonym**: a word with multiple meanings
+- **Syntactic ambiguity**: a sentence whose structure allows more than one meaning
+- **Transformer**: the 2017 architecture behind modern LLMs
+- **Attention**: the mechanism that lets the model focus on the meaning of and relationships between words
+- **Parallel processing**: handling input data at the same time instead of one step after another
