@@ -172,3 +172,141 @@ Chat | Essay writing | Summarization | Translation | Code generation | Entity ex
 - **Transformer**: the 2017 architecture behind modern LLMs
 - **Attention**: the mechanism that lets the model focus on the meaning of and relationships between words
 - **Parallel processing**: handling input data at the same time instead of one step after another
+
+
+
+
+
+
+
+
+
+
+# Lesson 5: Transformer Architecture
+
+## What This Lecture Discusses
+- Why **self-attention** makes transformers powerful
+- The high-level **structure of a transformer** (encoder + decoder)
+- The **step-by-step flow of data** through a transformer: tokenization → embedding → positional encoding → self-attention → feed-forward → softmax
+
+## Core Idea
+- Transformers learn the **relevance and context of every word to every other word** in a sentence, not just neighboring words.
+- **Attention weights** (learned during training) show how strongly each word relates to the others, no matter where they appear in the input.
+- An **attention map** visualizes these weights. For example, "book" pays strong attention to "teacher" and "student".
+- The transformer has two parts: an **encoder** and a **decoder**. They work together and share many similarities.
+- **ML models work with numbers, not words**, so text must be converted to numbers first.
+- **You must use the same tokenizer** for training and for generating text.
+- **Embedding vectors encode meaning and context.** Words close together in embedding space are related, and the **angle** between vectors measures similarity.
+- Since tokens are **processed in parallel**, **positional encoding** is needed to keep word order.
+- **Multi-headed attention:** many attention heads (commonly **12–100**) learn **in parallel and independently**. Each learns a different aspect of language, such as people relationships, activities, or rhymes.
+- **You don't decide** what each head learns. Heads start with **random weights** and learn on their own during training.
+- The final output is a **probability for every token in the vocabulary**. The highest score is the most likely next token, but other selection methods exist *(covered later)*.
+
+## Main Framework
+**Transformer data flow (bottom → top):**
+1. **Tokenization**: words → token IDs (numbers)
+2. **Embedding layer**: token IDs → vectors (meaning and context)
+3. **Positional encoding**: added to the embeddings to keep word order
+4. **Self-attention layer (multi-headed)**: learns relationships between all tokens
+5. **Feed-forward network**: processes each token's vector further (inside every layer)
+6. **Linear layer → logits**: one raw score per vocabulary token
+7. **Softmax layer**: converts logits to **probabilities** → predicts the next token
+
+> **Note:** The lecture said the feed-forward network produces the logits. In reality, a **final linear layer** after the last decoder layer produces them.
+
+## Where Each Step Happens
+
+| Step | Encoder | Decoder |
+|---|---|---|
+| Embedding + positional encoding | ✅ | ✅ |
+| Self-attention | ✅ | ✅ (**masked**) |
+| Cross-attention | ❌ | ✅ (looks at the encoder output) |
+| Feed-forward network | ✅ | ✅ |
+| Linear + softmax | ❌ | ✅ (**only at the end**) |
+
+- **Encoder** understands the input. It **runs once**, processing all tokens in parallel.
+- **Decoder** generates the output. It **runs once per output token**, in a loop (**autoregressive**).
+
+## Full Workflow: Input Text → Output Text
+**Example:** "I love tea" → "J'aime le thé"
+
+**Part 1: Prepare input**
+1. **Tokenize:** "I love tea" → `[I] [love] [tea]` → token IDs
+2. **Embed:** token IDs → vectors
+3. **Add positional encoding:** keeps word order
+
+**Part 2: Encoder (runs once)**
+
+4. **Multi-headed self-attention:** each token attends to all other tokens
+5. **Feed-forward network**
+6. Steps 4–5 repeat **× N layers** → **encoder output** (one context vector per token, reused by the decoder)
+
+**Part 3: Decoder (runs once per output token)**
+
+7. **Input:** `<start>` + tokens generated so far → embedding + positional encoding
+8. **Masked self-attention:** looks only at past tokens, never future ones
+9. **Cross-attention:** looks at the encoder output
+10. **Feed-forward network**
+11. Steps 8–10 repeat **× N layers**
+
+**Part 4: Predict**
+
+12. **Linear layer → logits** (one score per vocabulary token)
+13. **Softmax → probabilities**
+14. **Select the next token** (highest probability or a sampling method)
+
+**Part 5: Loop and output**
+
+15. **Feed the token back** and repeat Steps 7–14: `<start>` → J' → aime → le → thé → `<end>`
+16. **Detokenize:** token IDs → "J'aime le thé"
+
+```
+Text → Tokenize → Embed + Position
+     → ENCODER [Self-Attention → FFN] × N   (once)
+     → DECODER [Masked Self-Attn → Cross-Attn → FFN] × N   (per token)
+     → Linear (logits) → Softmax → Pick token
+     → Loop until <end> → Detokenize → Output Text
+```
+
+**Training vs inference:** during **training**, the decoder also runs in parallel because the correct output is known, and masking hides future tokens. The token-by-token loop happens only during **inference**.
+
+## Single Model, Not Multiple Models
+- **Embedding, encoder, decoder, and the final linear + softmax layers all belong to ONE model.** All their weights are **trained together** in one training process.
+- The **tokenizer is not a neural network**. It's a rule-based tool plus a vocabulary file that **ships with the model** and must match it.
+- Downloading a model (e.g., FLAN-T5 from Hugging Face) gives you **one set of model weights + tokenizer files**.
+
+**Why the confusion about multiple models?**
+- **Older NLP (Word2Vec):** embeddings were trained as a **separate model** and plugged in. Transformers learn embeddings **inside** the model.
+- **RAG and vector search** use **separate embedding models** to create vectors for vector databases. That is a different use case from the embedding layer inside an LLM.
+
+## Model Types: Not Every Model Has Both Encoder and Decoder
+
+| Type | Has | Examples | Best for | Why |
+|---|---|---|---|---|
+| **Encoder-only** | Encoder | **BERT**, RoBERTa | Classification, sentiment analysis, NER | Sees the **whole input at once in both directions**, giving deep understanding; doesn't need to generate text |
+| **Encoder-decoder** | Both | **T5, FLAN-T5**, BART | Translation, summarization | The input and output are **different sequences**: the encoder understands the input, and the decoder generates a new output |
+| **Decoder-only** | Decoder | **GPT**, LLaMA, most modern LLMs | General text generation, chat | Predicts the **next token** from previous tokens; simple, **scales very well**, and handles almost any task as text generation |
+
+> Most modern LLMs are **decoder-only**. With enough scale, next-token prediction alone can handle almost any task. The next lecture covers these model types in more detail.
+
+## Key Terms
+- **Self-attention**: learns how each word relates to every other word in the input
+- **Attention weights**: learned values showing the importance of each word to the others
+- **Attention map**: a diagram showing the attention weights between words
+- **Encoder**: understands the input and runs once
+- **Decoder**: generates output one token at a time
+- **Tokenization**: converting words, or parts of words, into token IDs
+- **Tokenizer**: performs tokenization; must be the same for training and generation; not a neural network
+- **Embedding layer**: the first layer of the model; maps each token to a vector
+- **Embedding vector**: the numeric representation of a token's meaning (512 dimensions in the original paper)
+- **Word2Vec**: an earlier NLP algorithm that used separately trained embeddings
+- **Positional encoding**: adds word-order information to the token vectors
+- **Multi-headed self-attention**: multiple attention heads learning different language aspects in parallel
+- **Masked self-attention**: decoder attention that cannot see future tokens
+- **Cross-attention**: lets the decoder look at the encoder output
+- **Feed-forward network**: a fully connected layer inside every encoder and decoder layer
+- **Logits**: raw scores from the final linear layer, one per vocabulary token
+- **Softmax**: normalizes logits into probabilities across the whole vocabulary
+- **Autoregressive generation**: generating one token at a time, feeding each output back as input
+- **Detokenization**: converting token IDs back into text
+- **Encoder-only / decoder-only / encoder-decoder**: the three transformer model types
