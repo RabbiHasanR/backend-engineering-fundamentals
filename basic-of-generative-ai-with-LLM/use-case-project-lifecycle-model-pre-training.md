@@ -310,3 +310,135 @@ Text → Tokenize → Embed + Position
 - **Autoregressive generation**: generating one token at a time, feeding each output back as input
 - **Detokenization**: converting token IDs back into text
 - **Encoder-only / decoder-only / encoder-decoder**: the three transformer model types
+
+
+
+
+
+
+
+
+
+# Lesson 6: Generating Text with Transformers
+
+## What This Lecture Discusses
+- The **end-to-end prediction process** of a transformer, using a translation example
+- How the **encoder and decoder work together** to generate output
+- The **three transformer model types**: encoder-only, encoder-decoder, decoder-only
+
+## Core Idea
+- **Translation (sequence-to-sequence)** was the **original purpose** of the transformer.
+- **Encoder:** turns the input into a **deep representation of its structure and meaning**.
+- **Decoder:** uses the encoder's understanding to **generate new tokens in a loop** until a stop condition (the end-of-sequence token).
+- The encoder output is **inserted into the middle of the decoder** to influence its attention (cross-attention).
+- **How you pick a token from the softmax output affects how creative the text is** *(covered later this week)*.
+- Encoder and decoder can be **split apart** to create different model types.
+- **Decoder-only models are the most common today.** As they scale, they **generalize to most tasks**.
+- **You don't need to memorize every architecture detail.** The goal is to understand the differences between models and be able to **read model documentation**.
+- You interact with models through **natural language (prompts)**, not code. This is **prompt engineering** *(next lecture)*.
+
+## Main Framework
+
+### Encoder–Decoder Workflow
+**Example:** French "J'aime l'apprentissage automatique" → English "I love machine learning"
+
+**Encoder side (runs once)**
+1. **Tokenize** the input with the **same tokenizer used in training**
+2. **Embedding layer** → vectors
+3. **Multi-headed attention layers**
+4. **Feed-forward network** → **encoder output** (a deep representation of meaning and structure)
+5. The encoder output is **sent into the middle of the decoder** (cross-attention)
+
+**Decoder side (loops once per token)**
+
+6. Add a **start-of-sequence token** to the decoder input
+7. **Decoder self-attention** + encoder context
+8. **Decoder feed-forward network**
+9. **Softmax output layer** → **first token** ("I")
+10. **Feed the token back** into the decoder input → predict the next token
+11. Repeat until the **end-of-sequence token**
+12. **Detokenize** → "I love machine learning"
+
+```
+Input → Tokenize → Embed → [Multi-head Attention → FFN] → Encoder Output
+                                                              ↓
+<start> → Decoder [Self-Attention + Encoder Context → FFN] → Softmax → Token
+     ↑                                                                   ↓
+     └──────────── feed token back (loop) ←──────────────────────────────┘
+                     until <end> → Detokenize → Output Text
+```
+
+### Three Transformer Model Types
+
+| Type | Input vs output | Use cases | Examples |
+|---|---|---|---|
+| **Encoder-only** | Input and output are the **same length** (without modification) | **Classification** (sentiment analysis) after adding extra layers; less common today | **BERT** |
+| **Encoder-decoder** | Input and output can be **different lengths** | **Sequence-to-sequence** (translation, summarization); can be scaled for general text generation | **BART, T5** (used in the labs) |
+| **Decoder-only** | Generates text from the input | **Most common today**; generalizes to most tasks as it scales | **GPT, BLOOM, Jurassic, LLaMA** |
+
+## My Questions & Answers
+
+### Q1: What is the decoder's input? Does it take encoder outputs one by one?
+**No.**
+- **Decoder input = only its own generated tokens**, starting with `<start>` and growing by one token each step.
+- **Encoder output = the full original sentence, always available.** At **every step**, cross-attention looks at **all** encoder vectors together and focuses on the relevant part.
+
+| Step | Decoder input | Looks at | Output |
+|---|---|---|---|
+| 1 | `<start>` | all encoder vectors | I |
+| 2 | `<start> I` | all encoder vectors | love |
+| 3 | `<start> I love` | all encoder vectors | machine |
+| 4 | `<start> I love machine` | all encoder vectors | learning |
+| 5 | `<start> I love machine learning` | all encoder vectors | `<end>` → stop |
+
+> 💡 Like translating word by word: you keep looking at the **original sentence** and at **what you've written so far** to choose the next word.
+
+### Q2: What does "inserted into the middle of the decoder" mean? Why the middle?
+The encoder finishes **first**. Its output then enters **inside each decoder layer**:
+
+```
+Each decoder layer:
+  ① Masked self-attention  → "What have I written so far?"
+  ② Cross-attention        → "Which part of the input do I need now?"  ← encoder output enters HERE
+  ③ Feed-forward           → combine and process
+```
+
+**Why the middle?** The decoder must first understand **its own progress** (①) before it can **search the input intelligently** (②).
+
+> 💡 First reread your own translation, then look at the original page for what comes next.
+
+### Q3: What does "× N layers" mean? Is N the encoder output length?
+**No. N = the number of stacked layers**, fixed by the model design (original transformer: 6).
+
+| Number | Meaning | Fixed? |
+|---|---|---|
+| **N** | Number of layers (model depth) | ✅ Fixed |
+| **Input length** | Number of input tokens = number of encoder vectors | ❌ Varies |
+| **Output length** | Number of generated tokens = number of decoder steps | ❌ Varies |
+
+- In each step, data passes through **Layer 1 → 2 → … → N in order**, then softmax picks **one token**.
+- **KV cache:** real models cache old tokens' results, so each step processes **only the newest token**. This makes generation faster.
+
+### Q4: How does the decoder know how many tokens to generate? (e.g., 5 input vectors → 7 output tokens)
+**It doesn't know in advance.** It decides step by step.
+- **`<end>` is a normal vocabulary token.** At each step, softmax gives it a probability too.
+- When `<end>` is predicted, **generation stops**.
+- **It learns this from training.** Every target output ends with `<end>` (e.g., "I love tea `<end>`"), so the model learns to stop once the full meaning is expressed.
+- A **safety limit** (`max_new_tokens`) stops generation if `<end>` never comes.
+
+> 💡 **Input length ≠ output length.** Generation stops at `<end>` (or the max limit), not when the encoder vectors run out.
+
+## Key Terms
+- **Sequence-to-sequence task**: input sequence → output sequence (e.g., translation)
+- **Deep representation**: the encoder's rich understanding of the input's meaning and structure
+- **Start-of-sequence token**: a special token that triggers the decoder to begin generating
+- **End-of-sequence token**: a special token that tells the model to stop generating
+- **Detokenization**: converting output tokens back into words
+- **Cross-attention**: lets the decoder look at all encoder output vectors at every step
+- **N layers**: the fixed number of stacked encoder or decoder layers
+- **max_new_tokens**: a safety limit on how many tokens to generate
+- **KV cache**: stores earlier tokens' results so only the new token is processed each step
+- **Encoder-only model**: understanding and classification (BERT)
+- **Encoder-decoder model**: input-to-output transformation (T5, BART)
+- **Decoder-only model**: general text generation (GPT, LLaMA)
+- **Prompt engineering**: interacting with a model through written natural-language prompts
