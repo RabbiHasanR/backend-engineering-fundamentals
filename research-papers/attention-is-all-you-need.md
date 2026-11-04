@@ -239,3 +239,7 @@ The abstract said **3.5 days**, and the introduction says **12 hours**. That's n
 
 > **"RNNs are good but slow because they work word by word. Attention is powerful but was always attached to an RNN. So we removed the RNN and used only attention."**
 
+
+
+
+reading paper
