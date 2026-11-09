@@ -242,7 +242,77 @@ The abstract said **3.5 days**, and the introduction says **12 hours**. That's n
 
 
 
-reading paper today again
 
 
-what is the llm and agents?
+## The background in simple words
+
+This section answers: **"Did anyone else try to fix the RNN speed problem? And what's different about our approach?"**
+
+### Part 1: Others tried CNNs instead of RNNs
+
+Three earlier models (**Extended Neural GPU, ByteNet, ConvS2S**) had the same goal: **stop working word by word**. They used **CNNs** (convolutional networks), which can process **all positions in parallel**. So they fixed the speed problem.
+
+### Part 2: But CNNs have a distance problem
+
+A CNN layer only looks at a **small window** of nearby words, for example 3 words at a time. To connect word 1 with word 50, the information must pass through **many stacked layers**, step by step.
+
+Think of it like friends-of-friends: you know your neighbor, your neighbor knows the next person, and so on. To reach someone far away, the message must pass through many people.
+
+- **ConvS2S:** the number of steps grows **linearly** with distance (twice as far → about twice the steps).
+- **ByteNet:** grows **logarithmically** (much slower growth, but still grows).
+
+More steps between two words means it's **harder to learn** their connection. It's the same problem as RNN forgetting, just smaller.
+
+### Part 3: The Transformer connects any two words in one step
+
+In the Transformer, any word can look at any other word **directly**, so it takes a **constant** number of steps, no matter how far apart the words are.
+
+**But there's a cost:** attention makes a **weighted average** of many words, and averaging can **blur** the details. The paper calls this "reduced effective resolution."
+
+You already know this problem! It's exactly what we saw in the attention heads lesson: one head must split 100% between "animal" and "tired," so both get blurred. And the fix is the same: **Multi-Head Attention** (Section 3.2).
+
+### Part 4: Self-attention already existed
+
+**Self-attention** (also called **intra-attention**) means words in the **same sentence** look at each other. Before this paper, it had already worked well on tasks like reading comprehension and summarization. So the authors **didn't invent self-attention**.
+
+**End-to-end memory networks** used a different attention-based design and did well on simple question-answering tasks. Not important for us.
+
+### Part 5: What's new in this paper
+
+The Transformer is the **first** translation model that uses **only self-attention**, with **no RNN and no CNN**.
+
+The next sections will describe the model, explain why self-attention is a good choice, and compare it with these other models.
+
+## The three approaches side by side
+
+| Model type | Parallel? | Steps to connect two far words |
+|---|---|---|
+| **RNN** | ❌ No, word by word | Many: grows with distance (n steps) |
+| **CNN** (ConvS2S, ByteNet) | ✅ Yes | Grows with distance (fewer than RNN, but still grows) |
+| **Transformer** | ✅ Yes | **1 step, always** |
+
+You'll see this exact comparison with formulas in **Table 1 (Section 4)**, under "Maximum Path Length."
+
+## Words you might not know
+
+| Word | Simple meaning |
+|---|---|
+| Convolutional neural network (CNN) | A network that looks at a small window of neighbors at a time; popular for images |
+| Hidden representations | The vectors for each word inside the model (like hidden states) |
+| Arbitrary positions | Any two positions, chosen freely |
+| Linearly | Grows at the same rate: 2× distance → 2× steps |
+| Logarithmically | Grows very slowly: distance 8 → 3 steps, distance 1024 → 10 steps |
+| Albeit | Although, but |
+| Effective resolution | How sharp and detailed the information is (blurred = low resolution) |
+| Intra-attention | Another name for self-attention ("intra" = inside the same sentence) |
+| Textual entailment | Deciding if one sentence logically follows from another |
+| Abstractive summarization | Writing a summary in new words, not copying sentences |
+| Sequence-aligned RNNs | Normal RNNs that process one step per word position |
+
+## The background in one line
+
+> **"CNNs made processing parallel, but far-apart words still need many steps to connect. The Transformer connects any two words in one step, fixes the blurring with multi-head attention, and is the first model to use only self-attention."**
+
+## What's next: Section 3, the heart of the paper
+
+Section 3 is long and important, so let's take it **one subsection at a time**. Before you paste anything, open the paper and look at **Figure 1** (the full Transformer diagram). Then paste **Section 3.1 (Encoder and Decoder Stacks)**, and we'll go through it together with Figure 1.
