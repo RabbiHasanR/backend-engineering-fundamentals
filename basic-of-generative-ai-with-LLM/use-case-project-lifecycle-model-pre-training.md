@@ -829,3 +829,97 @@ Prompt engineering → Evaluate → Not good enough?
 - **Model optimization**: making a model efficient for deployment
 - **Hallucination**: the model inventing information when it doesn't know the answer
 - **Application integration**: deploying the model and connecting it to your app and infrastructure
+
+
+
+
+
+
+
+
+
+
+# Lesson 10: Pre-training LLMs & Model Selection
+
+## What This Lecture Discusses
+- How to **select a model**: use an existing foundation model or train your own
+- **Model hubs and model cards**
+- **Pre-training**: how LLMs initially learn language
+- The **three transformer types** and their **pre-training objectives**
+- Why **bigger models** perform better, and the limits of scaling
+
+## Core Idea
+- **Usually start with an existing foundation model.** Training from scratch is needed only in special cases *(covered later)*.
+- **Model hubs** (Hugging Face, PyTorch) let you browse models. **Model cards** describe each model's **best use cases, how it was trained, and known limitations**.
+- **The right model depends on your task.** Transformer variants suit different tasks **because they are trained differently**.
+- **Pre-training:**
+  - The model learns from **huge amounts of unstructured text** (GB → TB → PB), from internet scrapes and curated text collections.
+  - It's **self-supervised**: no human labels are needed, because the text itself provides the answers.
+  - The model learns **patterns and structure of language**, and the **weights are updated to minimize the loss** of the training objective.
+  - It needs **lots of compute and GPUs**.
+- **Data quality curation** (improving quality, reducing bias, removing harmful content) means **only 1–3% of the scraped tokens** are often used. Keep this in mind if you plan to pre-train your own model.
+- **Bigger models are generally more capable** and more likely to work **without in-context learning or fine-tuning**.
+- Growth in model size was driven by: **scalable transformers + massive data + more powerful compute**. Some researchers called this a **"new Moore's law for LLMs"**.
+- **However, training huge models is very difficult and expensive**, so continually scaling up may be **infeasible** *(next lecture)*.
+
+## Main Framework
+
+### Three Model Types and How They're Trained
+
+| | **Encoder-only** | **Decoder-only** | **Encoder-decoder** |
+|---|---|---|---|
+| **Also called** | **Autoencoding** | **Autoregressive** | **Sequence-to-sequence** |
+| **Pre-training objective** | **Masked Language Modeling (MLM)** | **Causal Language Modeling (CLM)** | Varies; T5 uses **span corruption** |
+| **What it learns to do** | Predict **masked tokens** to reconstruct the sentence (**denoising**) | Predict the **next token** from previous tokens | Reconstruct **masked spans** of text |
+| **Context** | **Bidirectional** (sees the whole sentence) | **Unidirectional** (sees only previous tokens) | Encoder bidirectional, decoder autoregressive |
+| **Good for** | Sentiment analysis, **NER**, word/token classification | **Text generation**; large ones show strong **zero-shot** ability on many tasks | **Translation, summarization, question answering** |
+| **Examples** | **BERT, RoBERTa** | **GPT, BLOOM** | **T5, BART** |
+
+### Training Objective Examples
+Original sentence: **"The teacher teaches the student"**
+
+**1. Masked Language Modeling (encoder-only)**
+```
+Input:   The teacher <MASK> the student
+Target:  The teacher teaches the student   ← predict the masked word using BOTH sides
+```
+
+**2. Causal Language Modeling (decoder-only)**
+```
+The            → predict "teacher"
+The teacher    → predict "teaches"
+The teacher teaches → predict "the"   ← sees ONLY previous words, never the future
+```
+
+**3. Span Corruption (T5, encoder-decoder)**
+```
+Input (encoder):   The teacher <X> student          ← "teaches the" replaced by sentinel <X>
+Output (decoder):  <X> teaches the                  ← sentinel + the missing tokens
+```
+
+### Quick Selection Guide
+```
+Classify text / tag tokens        → Autoencoding (BERT)
+Generate text / many tasks        → Autoregressive (GPT, BLOOM)
+Text in → different text out      → Sequence-to-sequence (T5, BART)
++ Bigger model = more capable, but more costly
+```
+
+## Key Terms
+- **Foundation model**: a pre-trained model used as the starting point
+- **Model hub**: a website or repository to browse models (e.g., Hugging Face Hub)
+- **Model card**: documentation of a model's use cases, training, and limitations
+- **Pre-training**: the initial training on huge unstructured text to learn language
+- **Self-supervised learning**: learning from unlabeled data, where the text provides its own targets
+- **Training objective / loss**: what the model is trained to predict; training minimizes the loss
+- **Data quality curation**: cleaning data to improve quality, reduce bias, and remove harmful content (often only 1–3% of tokens are kept)
+- **Autoencoding model**: encoder-only, trained with masked language modeling
+- **Masked Language Modeling (MLM)**: predict randomly masked tokens; a **denoising** objective
+- **Bidirectional context**: understanding a token using words both before and after it
+- **Autoregressive model**: decoder-only, trained with causal language modeling
+- **Causal Language Modeling (CLM)**: predict the next token from previous tokens only
+- **Unidirectional context**: seeing only the tokens before the current one
+- **Sequence-to-sequence model**: encoder-decoder, for text-to-text tasks
+- **Span corruption**: T5's objective; mask random spans of tokens and reconstruct them
+- **Sentinel token**: a special vocabulary token (e.g., `<X>`) that replaces a masked span; not a real word
+- **"Moore's law for LLMs"**: the hypothesis that model size and capability keep growing steadily
