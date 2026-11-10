@@ -515,3 +515,248 @@ Zero-shot → doesn't work? → One-shot → still not? → Few-shot
 - **One-shot inference**: one example included in the prompt
 - **Few-shot inference**: multiple examples included in the prompt
 - **Fine-tuning**: additional training on new data to make the model better at a specific task
+
+
+
+
+
+# Lesson 8: Generative Configuration (Inference Parameters)
+
+## What This Lecture Discusses
+- **Configuration parameters** that control how the model picks the next word at inference time
+- **Max new tokens, greedy decoding, random sampling, top-k, top-p, temperature**
+- How these settings control **output length and creativity**
+
+## Core Idea
+- **Configuration parameters ≠ training parameters.** They are set **at inference time** and are not learned.
+- They control two things: **output length** (max new tokens) and **creativity/randomness** (sampling, top-k, top-p, temperature).
+- **Softmax output = a probability for every word in the vocabulary.** These settings decide **how to choose** from that list.
+- **Greedy decoding** (default): always picks the highest-probability word. Good for short text, but it can **repeat words or phrases**.
+- **Random sampling** adds variety but can become **too creative** and drift into nonsense.
+- **Top-k and top-p limit random sampling** so the output stays **sensible** while keeping some variety.
+- **Temperature changes the probability distribution itself.** Top-k and top-p only **filter** the choices.
+- In Hugging Face, you must set **`do_sample=True`** to enable random sampling.
+
+## Main Framework
+```
+Softmax probabilities
+   → (Temperature reshapes the distribution)
+   → (Top-k / Top-p filter the candidates)
+   → Greedy (pick highest) OR Random sampling (pick by weight)
+   → Next token
+   → Repeat until <end> OR max_new_tokens reached
+```
+
+| Setting | Controls | Effect |
+|---|---|---|
+| **max_new_tokens** | Length | Maximum number of tokens to generate |
+| **Greedy decoding** | Selection | Always the top word → predictable, may repeat |
+| **Random sampling** | Selection | Weighted random pick → varied, may wander |
+| **Top-k** | Candidate pool | Only the top **k** words |
+| **Top-p** | Candidate pool | Top words until their probabilities **add up to p** |
+| **Temperature** | Distribution shape | Low = focused; high = creative |
+
+## Detailed Explanation with Examples
+**Prompt:** "I love to eat ___"
+**Softmax output (simplified):**
+
+| Word | Probability |
+|---|---|
+| cake | 0.20 |
+| donut | 0.10 |
+| banana | 0.02 |
+| apple | 0.01 |
+| … (thousands more) | … |
+
+### 1. max_new_tokens: limits length
+- It's a **cap on how many times** the model runs the selection loop.
+- `max_new_tokens = 100` → at most 100 tokens.
+- It is a **maximum, not an exact number**. If the model predicts `<end>` at token 60, it stops at 60.
+
+> **Example:** with a limit of 200, the answer may be only 120 tokens because the model finished naturally.
+
+### 2. Greedy decoding: always the top word
+- It always picks **cake** (0.20).
+- Same prompt → **same output every time**.
+- ❌ Problem: it can loop, as in "I love cake. I love cake. I love cake…"
+
+### 3. Random sampling: weighted random pick
+- cake has a **20%** chance, donut **10%**, banana **2%**, and so on.
+- The output **varies** each time and is more natural.
+- ❌ Problem: it **could pick a strange low-probability word**, sending the text off-topic.
+- Hugging Face: `do_sample=True`
+
+### 4. Top-k: pick from the top **k** words only
+- **k = 3** → candidates: **cake, donut, banana**. Everything else is removed.
+- The model then randomly picks among these 3 by weight. In the lecture, it chose **donut**.
+- ✅ Some randomness, without very unlikely words.
+
+> **Simple view:** "Choose only from the **top 3 menu items**."
+
+### 5. Top-p (nucleus sampling): pick from the top words up to total probability **p**
+- **p = 0.3** → add the words from the top down:
+  - cake (0.20) → total 0.20 ✅
+  - donut (0.10) → total **0.30** ✅ (reached p)
+  - banana → would exceed 0.3 ❌
+- Candidates: **cake, donut**. Then pick randomly by weight.
+- ✅ The **number of candidates changes** with the situation:
+  - Model is confident (one word at 0.9) → maybe only 1 candidate
+  - Model is unsure (many words around 0.05) → many candidates
+
+> **Simple view:** top-k = **fixed number** of options; top-p = **fixed total probability** of options.
+
+### 6. Temperature: reshapes the probability distribution
+- A **scaling factor applied inside the softmax layer**.
+- Formula idea: `softmax(logits / temperature)`
+- Unlike top-k and top-p, it **changes the probabilities themselves**.
+
+**Example** (raw logits: cake = 2.0, donut = 1.0, banana = 0.0):
+
+| Word | **T = 0.5 (cool)** | **T = 1 (default)** | **T = 2 (hot)** |
+|---|---|---|---|
+| cake | **0.87** | 0.67 | 0.51 |
+| donut | 0.12 | 0.24 | 0.31 |
+| banana | 0.02 | 0.09 | 0.19 |
+| Shape | **Peaked** | Normal | **Flat** |
+| Output | Safe, focused | Balanced | Creative, varied |
+
+- **T < 1** → probability concentrates on the top words → **less random**, follows learned patterns
+- **T = 1** → the original softmax distribution, unchanged
+- **T > 1** → probability spreads out → **more random and creative**
+
+**When to use what:**
+
+| Task | Temperature |
+|---|---|
+| Code, facts, data extraction, summaries | **Low** (0–0.3) |
+| General chat | **Medium** (0.7–1.0) |
+| Stories, poems, brainstorming | **High** (1.0+) |
+
+> **Simple view:** temperature is a **creativity knob**. Cold = serious and predictable; hot = creative and surprising.
+
+## Using All of Them Together
+All of these settings can work **together as a pipeline**. Each step does one job:
+
+| Order | Step | Job |
+|---|---|---|
+| 1 | **Temperature** | **Reshapes** the probabilities (sharper or flatter) |
+| 2 | **Top-k** | **Filter 1**: keep only the top k words |
+| 3 | **Top-p** | **Filter 2**: from those, keep words up to total probability p |
+| 4 | **Random sampling** | **Pick** one word from the remaining candidates, by weight |
+| 5 | **max_new_tokens** | **Stop** the loop when the limit is reached (or at `<end>`) |
+
+> Top-k, top-p, and temperature only take effect **when random sampling is on** (`do_sample=True`). With greedy decoding, the top word is always chosen, so these settings have no effect.
+
+**Step-by-step example:** `temperature=0.7, top_k=3, top_p=0.9, do_sample=True`
+
+```
+1. Softmax (original):   cake 0.40, donut 0.25, banana 0.15, apple 0.10, rock 0.05 ...
+2. Temperature 0.7:      cake 0.50, donut 0.27, banana 0.13, apple 0.07, rock 0.02 ...
+                         (top words become stronger, weak words weaker)
+3. Top-k = 3:            cake, donut, banana             (apple, rock removed)
+4. Top-p = 0.9:          cake 0.50 + donut 0.27 = 0.77 → + banana 0.13 = 0.90 ✅
+                         → keep cake, donut, banana
+5. Random sampling:      re-normalize and pick by weight → e.g., "donut"
+6. Repeat for the next token until <end> or max_new_tokens
+```
+
+**Hugging Face example:**
+```python
+model.generate(
+    input_ids,
+    max_new_tokens=100,  # length limit
+    do_sample=True,      # enable random sampling (else greedy)
+    temperature=0.7,     # 1. reshape: slightly focused
+    top_k=50,            # 2. filter: only top 50 words
+    top_p=0.9,           # 3. filter: up to 90% total probability
+)
+```
+
+**Common presets:**
+
+| Goal | Settings |
+|---|---|
+| **Factual / code** | `do_sample=False` (greedy) **or** `temperature=0.2, top_p=0.9` |
+| **Balanced chat** | `temperature=0.7, top_p=0.9` |
+| **Creative writing** | `temperature=1.0–1.2, top_p=0.95, top_k=50` |
+
+> 💡 **Tip:** in practice, people usually tune **temperature + top-p** and leave top-k at its default. Changing too many settings at once makes results hard to understand.
+
+## What Do "10 Billion Parameters" Mean?
+**Parameters = the learned numbers (weights) inside the model.** "10B" means the model contains **10,000,000,000 numbers** that store its knowledge.
+
+- Every embedding vector, attention weight, and feed-forward weight is made of these numbers.
+- During training, they're adjusted billions of times until the model predicts well.
+
+**Scale examples:**
+
+| Model | Parameters | Category |
+|---|---|---|
+| BERT base | 110 million (0.11B) | Small |
+| FLAN-T5 base (labs) | ~250 million | Small |
+| LLaMA 7B | 7 billion | Medium |
+| LLaMA 70B | 70 billion | Large |
+| GPT-3 | 175 billion | Very large |
+
+**What this means in practice (memory needed):**
+Each parameter is stored as a number, usually **2 bytes** (16-bit float) for inference.
+
+| Model | Approximate memory to load (16-bit) |
+|---|---|
+| 1B | ~2 GB |
+| 7B | ~14 GB |
+| 70B | ~140 GB (needs multiple GPUs) |
+
+Formula: **parameters × 2 bytes ≈ GPU memory needed** (plus extra for computation).
+
+**Trade-off:**
+- **More parameters** → more knowledge, better reasoning, more tasks (good zero-shot ability)
+- **More parameters** → more GPU memory, slower, more expensive
+- **Fewer parameters** → cheaper and faster; good for **one focused task**, especially with fine-tuning
+
+> **Simple view:** parameters = the model's **brain cells (memory)**. A 7B model has 7 billion of them; a 175B model has 25× more.
+
+## My Questions & Answers
+
+### Q1: In top-p, do I choose the words myself? Does it depend on top-k?
+**No, you only set p. The model selects the words automatically.**
+1. **Sort** words by probability, highest first.
+2. **Add probabilities** from the top down.
+3. **Stop** when the total **reaches p**.
+4. **Randomly sample** among the kept words.
+
+| p | Words kept (cake 0.20, donut 0.10, banana 0.02) |
+|---|---|
+| 0.2 | cake |
+| 0.3 | cake, donut |
+| 0.32 | cake, donut, banana |
+
+- Libraries (like Hugging Face) keep the **smallest set whose total reaches or passes p**, so at least one word is always kept.
+- **Top-p does NOT depend on top-k.** They are separate settings, but they can be **used together** as two filters (top-k first, then top-p).
+
+| | Top-k | Top-p |
+|---|---|---|
+| You set | **Number of words** | **Total probability** |
+| Candidate count | **Always fixed** | **Adapts** to model confidence |
+
+**Why top-p adapts well:**
+- "The capital of France is ___" → Paris = 0.95 → with p = 0.9, **only "Paris"** is kept.
+- "My favorite food is ___" → many words around 0.05 → with p = 0.9, **many words** are kept.
+
+### Q2: What is inference vs model parameters?
+- **Inference** = using a trained model to generate output. **Parameters don't change.**
+- **Training** = the model learns, and **parameters are updated**.
+- **Model parameters** = learned weights (billions of them). **Configuration parameters** = settings you choose when generating (temperature, top-k, etc.).
+
+## Key Terms
+- **Configuration (inference) parameters**: settings chosen at generation time; not learned
+- **Training parameters**: weights learned during training (the "billions of parameters")
+- **max_new_tokens**: the maximum number of tokens to generate (a cap, not exact)
+- **Greedy decoding**: always picks the highest-probability token
+- **Random sampling**: picks a token randomly, weighted by probability
+- **do_sample**: the Hugging Face flag that enables random sampling; required for top-k, top-p, and temperature to take effect
+- **Top-k sampling**: sample from only the top k tokens (fixed count)
+- **Top-p (nucleus) sampling**: sample from the smallest set of top tokens whose combined probability reaches p (adaptive count)
+- **Temperature**: scales the softmax distribution; low = focused, high = creative
+- **Probability distribution**: the softmax output giving each vocabulary token a probability
+- **Sampling pipeline**: temperature → top-k → top-p → random sample → repeat until `<end>` or max_new_tokens
