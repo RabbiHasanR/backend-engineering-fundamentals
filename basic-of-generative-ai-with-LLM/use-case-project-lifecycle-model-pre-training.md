@@ -442,3 +442,76 @@ Each decoder layer:
 - **Encoder-decoder model**: input-to-output transformation (T5, BART)
 - **Decoder-only model**: general text generation (GPT, LLaMA)
 - **Prompt engineering**: interacting with a model through written natural-language prompts
+
+
+
+
+
+
+
+
+# Lesson 7: Prompting & Prompt Engineering
+
+## What This Lecture Discusses
+- What **prompt engineering** is and why it's needed
+- **In-context learning**: improving results by adding examples to the prompt
+- **Zero-shot, one-shot, and few-shot inference**
+- When to switch from prompting to **fine-tuning**
+- How **model size** affects task performance
+
+## Core Idea
+- Models often **don't give the desired output on the first try**, so you revise the prompt several times. This is **prompt engineering**.
+- A powerful strategy is to **include examples of the task inside the prompt**. This is **in-context learning**.
+- **Large models** are good at **zero-shot** inference (no examples needed).
+- **Smaller models** often fail at zero-shot (e.g., GPT-2 didn't follow the instruction) but improve with **one-shot or few-shot** examples.
+- In few-shot prompts, **mix examples of different output classes** (e.g., one positive and one negative review) to help the model understand the task.
+- **The context window is limited**, so you can only include a certain number of examples.
+- **If 5–6 examples still don't work, try fine-tuning** instead *(Week 2)*.
+- **Model scale matters:**
+  - **Large models** can do many tasks, even ones they weren't specifically trained for.
+  - **Small models** are good only at a few tasks, usually ones similar to their training.
+- You may need to **try several models** to find the right one for your use case.
+
+## Main Framework
+
+### Prompt Structure (sentiment example)
+```
+Instruction:  Classify this review:
+Context:      "I loved this movie!"
+Output cue:   Sentiment: ______
+```
+
+### Zero-Shot vs One-Shot vs Few-Shot
+
+| Type | Examples in prompt | Works best with |
+|---|---|---|
+| **Zero-shot** | 0: only the instruction and input | **Large models** |
+| **One-shot** | 1 completed example + the actual input | Smaller models |
+| **Few-shot** | 2+ examples (mixed classes) + the actual input | Even smaller models |
+
+**One-shot example:**
+```
+Classify this review: I loved this movie!
+Sentiment: Positive
+
+Classify this review: I don't like this chair.
+Sentiment: ______
+```
+
+### Decision Flow
+```
+Zero-shot → doesn't work? → One-shot → still not? → Few-shot
+     → still not working after 5–6 examples? → Fine-tune the model
+```
+
+## Key Terms
+- **Prompt**: the input text given to the model
+- **Inference**: the act of generating text
+- **Completion**: the output text
+- **Context window**: the total text or memory available for the prompt; it limits how many examples you can add
+- **Prompt engineering**: revising and improving the prompt to get the desired output
+- **In-context learning (ICL)**: helping the model learn the task by putting examples or data in the prompt
+- **Zero-shot inference**: no examples, only the instruction and input
+- **One-shot inference**: one example included in the prompt
+- **Few-shot inference**: multiple examples included in the prompt
+- **Fine-tuning**: additional training on new data to make the model better at a specific task
