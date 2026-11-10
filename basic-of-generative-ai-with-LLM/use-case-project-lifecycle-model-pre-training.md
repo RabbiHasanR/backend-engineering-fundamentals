@@ -760,3 +760,72 @@ Formula: **parameters × 2 bytes ≈ GPU memory needed** (plus extra for computa
 - **Temperature**: scales the softmax distribution; low = focused, high = creative
 - **Probability distribution**: the softmax output giving each vocabulary token a probability
 - **Sampling pipeline**: temperature → top-k → top-p → random sample → repeat until `<end>` or max_new_tokens
+
+
+
+
+
+
+# Lesson 9: Generative AI Project Lifecycle
+
+## What This Lecture Discusses
+- A **framework** that takes an LLM project from **idea to launch**
+- The **four main stages**: Scope → Select → Adapt & Align → Application Integration
+- The key **decisions, challenges, and infrastructure** at each stage
+
+## Core Idea
+- **Defining the scope is the most important step.** Make it **as accurate and narrow as possible**.
+- LLM ability depends on **model size and architecture**, so decide what the LLM must do:
+  - **Many tasks** (long-form generation, broad capability) → needs a large model
+  - **One specific task** (e.g., NER) → a smaller model may be enough
+- **A narrow scope saves time and compute cost.**
+- **Usually start with an existing base model** rather than training from scratch.
+- **Try prompt engineering first** (in-context learning); **fine-tune** only if it isn't enough.
+- **Alignment matters more as models get more capable.** RLHF makes the model behave in line with **human preferences**.
+- **Evaluation** is essential at every step, using **metrics and benchmarks**.
+- **The Adapt & Align stage is iterative:** prompt → evaluate → fine-tune → evaluate → prompt again.
+- Before deploying, **optimize the model** to use compute efficiently and give users a better experience.
+- **LLMs have built-in limitations** that training alone can't fully fix:
+  - **Inventing information** when they don't know the answer (hallucination)
+  - **Weak complex reasoning and math**
+  - Additional infrastructure and techniques are needed *(covered later in the course)*.
+
+## Main Framework
+
+### Generative AI Project Lifecycle
+```
+1. SCOPE  →  2. SELECT  →  3. ADAPT & ALIGN  →  4. APPLICATION INTEGRATION
+                            (iterative loop)
+```
+
+| Stage | Key question | What you do | Covered in |
+|---|---|---|---|
+| **1. Scope** | What exactly should the LLM do? | Define the use case **narrowly**: many tasks or one task? | Week 1 |
+| **2. Select** | Existing model or train my own? | Usually **choose an existing base model**; pre-train only in special cases | Week 1 |
+| **3. Adapt & Align** | Is it performing well enough? | **Prompt engineering** → **Fine-tuning** → **RLHF (align)** → **Evaluate** | Weeks 1–3 |
+| **4. Application Integration** | How do I deploy and use it? | **Optimize for deployment** + **build supporting infrastructure** | Week 3 |
+
+### Stage 3 Detail: Adapt & Align (iterative)
+```
+Prompt engineering → Evaluate → Not good enough?
+   → Fine-tuning → Evaluate → Align with human feedback (RLHF) → Evaluate
+   → Revisit prompt engineering if needed (loop)
+```
+
+### Stage 4 Detail: Application Integration
+- **Optimize & deploy** the model for inference (efficient compute use, better user experience)
+- **Augment the model and build LLM-powered apps** to overcome limitations (hallucination, reasoning, math)
+
+## Key Terms
+- **Generative AI project lifecycle**: a framework to plan an LLM project from idea to launch
+- **Scope**: clearly defining what the LLM must do in your application
+- **Base / foundation model**: an existing pre-trained model you start from
+- **Pre-training (from scratch)**: training your own model; rarely needed
+- **Adapt**: improving model performance through prompt engineering or fine-tuning
+- **Align**: making model behavior match human preferences (e.g., RLHF)
+- **Fine-tuning**: a supervised learning process to improve the model for a specific task *(Week 2)*
+- **RLHF**: Reinforcement Learning from Human Feedback; a fine-tuning technique for alignment *(Week 3)*
+- **Evaluation**: measuring model performance or alignment with metrics and benchmarks
+- **Model optimization**: making a model efficient for deployment
+- **Hallucination**: the model inventing information when it doesn't know the answer
+- **Application integration**: deploying the model and connecting it to your app and infrastructure
