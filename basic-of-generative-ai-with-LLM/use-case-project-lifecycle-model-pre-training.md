@@ -1200,3 +1200,69 @@ Bigger models need more compute, and generally more data too.
 For a fixed compute budget, don't just make the model bigger: balance size with data, at roughly 20 tokens of training data per parameter.
 
 The transcript had a few speech-to-text errors, which I corrected: the authors are Hoffmann, Borgeaud, and Mensch, "LAMA" is LLaMA, "chinchilla loss" is the Chinchilla scaling laws, and "Bloomberg GPT" is BloombergGPT.
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Lesson 14: Pre-training for domain adaptation
+
+## Core idea
+You will normally build on an existing LLM, but there is one case where pre-training your own model from scratch is worth it: when your domain's language is very different from everyday language, as in law, medicine, finance, or science. A model learns its vocabulary and language understanding during pre-training, so a general model can struggle with specialist terms. **BloombergGPT** is the worked example: a finance model pre-trained from scratch, guided by the Chinchilla scaling laws but forced into trade-offs by limited domain data.
+
+## Main framework to remember
+
+**1. The default and the exception**
+- Default: use an existing LLM. It saves time and gets you to a working prototype faster.
+- Exception: pre-train from scratch for **domain adaptation**, when the target domain uses vocabulary and language structures that are uncommon in day-to-day language.
+
+**2. Why general models struggle in specialist domains**
+
+| Problem | Example |
+|---|---|
+| Rare terms that barely appear in general training text | Legal: "mens rea", "res judicata" |
+| Everyday words with a different meaning | Legal: "consideration" means the element that makes a contract enforceable, not being nice |
+| Uncommon technical vocabulary | Medical terms for conditions and procedures, rare in web scrapes and books |
+| Idiosyncratic shorthand | Prescription notation that reads to a pharmacist as "take one tablet by mouth four times a day, after meals and at bedtime" |
+
+**3. BloombergGPT (2023; Shijie Wu, Steven Lu and colleagues at Bloomberg)**
+- An LLM pre-trained specifically for finance.
+- Training data: **51% financial data, 49% public general-purpose data**.
+- Result: best-in-class on financial benchmarks while staying competitive on general-purpose LLM benchmarks.
+
+**4. BloombergGPT against the Chinchilla scaling laws**
+- Compute budget: 1.3 million GPU hours (the lecture gives this as roughly 230 million petaflops).
+- **Model size (50B parameters):** only slightly above the Chinchilla-optimal range, so fairly close to optimal.
+- **Training data (569 billion tokens):** below the Chinchilla-recommended amount for that budget.
+- Reason: limited availability of financial domain data.
+- Lesson: real-world constraints can force trade-offs away from the theoretical optimum.
+
+**5. Week 1 recap**
+- LLM use cases: essay writing, dialogue summarization, translation.
+- The transformer architecture and the inference parameters that influence output.
+- The generative AI project lifecycle for planning application work.
+- Pre-training: where models develop their understanding of language from vast amounts of text.
+- Computational challenges: GPU memory limits mean you will almost always use some form of quantization.
+- Scaling laws and how they guide the design of compute-optimal models.
+
+## Key terms
+- **Domain adaptation**: making a model perform well in a specialized field whose language differs from general text.
+- **Pre-training from scratch**: training a new model on your own data from the start, instead of building on an existing one.
+- **Domain-specific vocabulary**: terms rarely used outside a field, such as legal Latin or medical terminology.
+- **BloombergGPT**: a 50B-parameter finance LLM, pre-trained on mixed financial and public data.
+- **Best-in-class**: the top result on the relevant benchmarks, here financial ones.
+- **Chinchilla scaling laws**: the guidance for the optimal model size and training tokens at a given compute budget.
+- **Trade-off**: accepting a non-optimal choice (here, fewer training tokens) because of a practical limit (scarce domain data).
+
+## One-line takeaway
+Pre-train from scratch only when your domain's language is too specialized for general models, and expect real-world limits such as scarce domain data to pull you away from the ideal scaling-law recipe.
+
+Two speech-to-text errors corrected: the paper's authors are Shijie Wu and Steven Lu, and "Bloomberg GPT" is BloombergGPT.
