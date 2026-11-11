@@ -923,3 +923,210 @@ Text in → different text out      → Sequence-to-sequence (T5, BART)
 - **Span corruption**: T5's objective; mask random spans of tokens and reconstruct them
 - **Sentinel token**: a special vocabulary token (e.g., `<X>`) that replaces a masked span; not a real word
 - **"Moore's law for LLMs"**: the hypothesis that model size and capability keep growing steadily
+
+
+
+
+
+
+
+
+
+
+
+
+# Lesson 11: Computational challenges of training LLMs (GPU memory and quantization)
+
+## Core idea
+LLMs are so large that training them, or even loading them, often runs out of GPU memory (the CUDA out-of-memory error). **Quantization** cuts memory by storing weights at lower precision (32-bit → 16-bit or 8-bit), trading a little accuracy for a much smaller footprint. Beyond a few billion parameters, even that isn't enough and you need multi-GPU distributed training.
+
+## Main framework to remember
+
+**1. Memory math**
+- 1 parameter = one 32-bit float = 4 bytes
+- 1B parameters = about 4 GB just to store the weights
+- Training adds Adam optimizer states (2), gradients, activations, and temporary variables: about 20 extra bytes per parameter
+- Rule of thumb: training needs about 6× the weight memory, so a 1B-parameter model needs about 24 GB at FP32
+
+**2. Quantization: lower precision, less memory**
+
+| Type | Bits (sign / exponent / fraction) | Bytes per value | Range | Pi stored as | 1B-param weights |
+|---|---|---|---|---|---|
+| FP32 | 1 / 8 / 23 | 4 | about ±3×10³⁸ | about 3.141593 (slight loss) | 4 GB |
+| FP16 | 1 / 5 / 10 | 2 | ±65,504 | 3.140625 | 2 GB |
+| BFLOAT16 | 1 / 8 / 7 | 2 | same as FP32 | n/a | 2 GB |
+| INT8 | 1 / 7 (integer) | 1 | −128 to 127 | 3 | 1 GB |
+
+- Quantization projects FP32 values into the lower-precision space using scaling factors calculated from the range of the original values.
+- The parameter count stays the same; only the precision per parameter drops.
+- The same proportional savings apply to training memory.
+
+**3. BFLOAT16 (the practical default)**
+- A "truncated FP32": it keeps the full 8-bit exponent (so the full dynamic range) and cuts the fraction to 7 bits.
+- Half the memory of FP32, better training stability than FP16, and faster calculations.
+- Its weakness is integer calculations, which are rare in deep learning.
+- FLAN-T5 and many other LLMs were pre-trained with it; newer GPUs such as the NVIDIA A100 support it.
+
+**4. The scale limit**
+- Models with 50B to 100B+ parameters need up to 500× more memory, which is tens of thousands of GB.
+- Past a few billion parameters, a single GPU is not enough and you need distributed training across many GPUs, which is very expensive.
+- This is why you rarely pre-train from scratch. Fine-tuning also holds all the trained parameters in memory, so the same constraints apply.
+
+## Key terms
+- **CUDA**: Compute Unified Device Architecture, NVIDIA's libraries and tools that PyTorch and TensorFlow use to speed up matrix multiplication and other deep learning operations.
+- **Out-of-memory (OOM) error**: the model plus training overhead exceeds GPU RAM.
+- **Precision**: the number of bits used to store each number.
+- **FP32 / FP16 / BFLOAT16 / INT8**: full precision, half precision, brain floating point (from Google Brain), and 8-bit integer.
+- **Sign, exponent, fraction**: the three parts of a floating point number. The fraction is also called the mantissa or significand and holds the precision bits.
+- **Quantization**: projecting weights into a lower-precision space to reduce memory.
+- **Scaling factor**: the mapping from the original value range to the lower-precision range.
+- **Quantization-aware training (QAT)**: the framework learns the scaling factors during training.
+- **Dynamic range**: the span of values a data type can represent.
+- **Distributed computing / multi-GPU training**: splitting training across many GPUs.
+
+## One-line takeaway
+Memory = parameters × bytes per parameter (×6 for training). Quantization shrinks the bytes per parameter, with BFLOAT16 the usual choice, and beyond a few billion parameters you need multiple GPUs.
+
+
+
+
+
+
+# Lesson 12: Efficient multi-GPU compute strategies (DDP and FSDP)
+
+## Core idea
+When a model is too big for one GPU, or you simply want faster training, you spread the work across many GPUs. There are two approaches: **DDP** copies the full model to every GPU and splits only the data, while **FSDP** also splits (shards) the model's parameters, gradients, and optimizer states, so models that don't fit on one GPU can still be trained. FSDP saves memory at the cost of more communication between GPUs.
+
+## Visual: how DDP works (2 GPUs)
+
+Every GPU holds a full copy of the model. Only the data is split.
+
+```mermaid
+flowchart TD
+    D["Dataloader"]
+    D -->|"Batch A"| A1
+    D -->|"Batch B"| B1
+
+    subgraph G0["GPU 0 - full model copy"]
+        A1["Forward pass on batch A<br/>prediction and loss"]
+        A2["Backward pass<br/>gradients from batch A"]
+        A1 --> A2
+    end
+
+    subgraph G1["GPU 1 - full model copy"]
+        B1["Forward pass on batch B<br/>prediction and loss"]
+        B2["Backward pass<br/>gradients from batch B"]
+        B1 --> B2
+    end
+
+    S["Synchronize gradients<br/>average of A and B, sent to both GPUs"]
+    A2 --> S
+    B2 --> S
+
+    U0["GPU 0 - update model<br/>optimizer updates its full copy"]
+    U1["GPU 1 - update model<br/>optimizer updates its full copy"]
+    S --> U0
+    S --> U1
+
+    R["Both copies are identical again<br/>repeat with the next batches"]
+    U0 --> R
+    U1 --> R
+```
+
+## Visual: how FSDP works (2 GPUs)
+
+Each GPU stores only its own shard of the parameters, gradients, and optimizer states. It borrows the other shard when it needs the full weights.
+
+```mermaid
+flowchart TD
+    D["Dataloader"]
+    D -->|"Batch A"| A0
+    D -->|"Batch B"| B0
+
+    subgraph G0["GPU 0 - stores shard 0 only"]
+        A0["Get weights<br/>all-gather shard 1 from GPU 1"]
+        A1["Forward pass on batch A<br/>prediction and loss"]
+        A2["Get weights<br/>gather again, or reuse"]
+        A3["Backward pass<br/>full gradients from batch A"]
+        A0 --> A1 --> A2 --> A3
+    end
+
+    subgraph G1["GPU 1 - stores shard 1 only"]
+        B0["Get weights<br/>all-gather shard 0 from GPU 0"]
+        B1["Forward pass on batch B<br/>prediction and loss"]
+        B2["Get weights<br/>gather again, or reuse"]
+        B3["Backward pass<br/>full gradients from batch B"]
+        B0 --> B1 --> B2 --> B3
+    end
+
+    S["Synchronize gradients<br/>reduce-scatter: average A and B, then split"]
+    A3 --> S
+    B3 --> S
+
+    U0["GPU 0 - update model<br/>optimizer updates shard 0, borrowed shard 1 freed"]
+    U1["GPU 1 - update model<br/>optimizer updates shard 1, borrowed shard 0 freed"]
+    S -->|"Gradient slice for shard 0"| U0
+    S -->|"Gradient slice for shard 1"| U1
+
+    R["Repeat with the next batches"]
+    U0 --> R
+    U1 --> R
+```
+
+In practice the "get weights" step happens layer by layer, so a GPU holds its own shard plus one full layer at a time, never the whole model.
+
+## Main framework to remember
+
+**1. DDP (Distributed Data Parallel): model replication**
+- Every GPU holds a full, identical copy of the model.
+- Each GPU processes a different batch in parallel, then a synchronization step combines the gradients and every copy gets the same update.
+- Benefit: faster training, even for small models.
+- Limit: the weights, gradients, and optimizer states must all fit on a single GPU, and the same numbers are stored on every GPU (redundant memory).
+
+**2. ZeRO (Zero Redundancy Optimizer): the idea behind FSDP**
+- From Microsoft researchers, 2019. Shard the model states across GPUs with zero data overlap instead of replicating them.
+- Memory order during training: optimizer states (2× the weights) > weights > gradients.
+
+| Stage | What is sharded | Memory reduction |
+|---|---|---|
+| 1 | Optimizer states | up to 4× |
+| 2 | Optimizer states and gradients | up to 8× |
+| 3 | Optimizer states, gradients, and parameters | linear with GPU count (64 GPUs → up to 64×) |
+
+**3. FSDP (Fully Sharded Data Parallel)**
+- Data is distributed as in DDP, and the model states are sharded too.
+- Before the forward and backward passes, each GPU requests the missing shards from the others to build the full weights, then releases them afterwards.
+- It can keep the gathered weights for the backward pass instead of fetching them again: faster, but uses more GPU RAM.
+- After the backward pass, gradients are synchronized as in DDP.
+- Part of the computation can optionally be offloaded to CPUs to save more GPU memory.
+
+**4. Sharding factor (the memory vs speed dial)**
+- 1 = no sharding, full replication, similar to DDP.
+- Maximum (the number of GPUs) = full sharding: most memory saved, most communication.
+- Anything in between = hybrid sharding.
+
+**5. Benchmark results** (T5 models, up to 512 NVIDIA A100 GPUs with 80 GB each)
+- At 611M and 2.28B parameters, FSDP and DDP perform about the same.
+- At 11.3B parameters, DDP runs out of memory; FSDP handles it and gets much higher throughput at 16-bit precision.
+- Going from 8 to 512 GPUs costs about a 7% drop in per-GPU teraflops, because communication volume grows.
+
+## Key terms
+
+| Term | Meaning |
+|---|---|
+| Parameters (weights) | The numbers inside the model that training adjusts; they are the model's knowledge |
+| Forward pass | Run the batch through the layers, first to last, to get a prediction and its loss (error) |
+| Backward pass | Go from the last layer back to the first, working out how much each weight contributed to the error |
+| Gradients | The result of the backward pass: one number per weight saying which direction and how strongly to change it |
+| Optimizer | The rule that turns gradients into weight changes (Adam, for example) |
+| Optimizer states | Extra running statistics the optimizer keeps per weight; Adam keeps two, hence 2× the weight memory |
+| Get weights | FSDP only: all-gather the missing shards so the GPU has the full weights for the computation |
+| Synchronize gradients | Average the gradients from all GPUs so every GPU learns from every batch |
+| Update model | The optimizer applies the averaged gradients to the weights (the full copy in DDP, the own shard in FSDP) |
+| Model replication | A full copy of the model on every GPU (DDP) |
+| Sharding | Splitting model states across GPUs with no overlap |
+| Sharding factor | FSDP setting for how many GPUs the states are split across |
+| Teraflop | 1 trillion floating point operations per second; the performance measure used in the benchmarks |
+
+## One-line takeaway
+DDP splits the data and copies the model; FSDP splits both. Use DDP when the model fits on one GPU, and FSDP when it doesn't, accepting some communication overhead for the memory savings.
