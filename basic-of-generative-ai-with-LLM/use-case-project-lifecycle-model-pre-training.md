@@ -1130,3 +1130,73 @@ In practice the "get weights" step happens layer by layer, so a GPU holds its ow
 
 ## One-line takeaway
 DDP splits the data and copies the model; FSDP splits both. Use DDP when the model fits on one GPU, and FSDP when it doesn't, accepting some communication overhead for the memory savings.
+
+
+
+
+
+
+
+
+
+# Lesson 13: Scaling laws and compute-optimal models
+
+## Core idea
+Model performance depends on three linked quantities: **compute budget, training dataset size, and number of parameters**. Each one improves performance following a power law, but compute is usually a hard limit, so the real question is how to balance model size against data for a fixed budget. The **Chinchilla paper** showed that many huge models are too big and trained on too little data, and that a smaller model trained on more data can match or beat them.
+
+## Main framework to remember
+
+**1. The goal and the three levers**
+- The pre-training goal is to minimize the loss when predicting tokens.
+- You can improve performance by using more training data, more parameters, or both.
+- The constraint is the compute budget: how many GPUs you have, how long you can train, and how much money the project has.
+
+**2. The unit of compute: petaflop/s-day**
+- It is the number of floating point operations performed at 1 petaflop per second for one full day.
+- 1 petaflop = 1 quadrillion floating point operations per second.
+- For training transformers, 1 petaflop/s-day ≈ 8 NVIDIA V100 GPUs, or 2 NVIDIA A100 GPUs, running at full efficiency for a day.
+
+**3. The scale of pre-training compute**
+
+| Model | Parameters | Compute to pre-train |
+|---|---|---|
+| BERT base | a few hundred million | smallest on the chart |
+| T5 XL | 3 billion | close to 100 petaflop/s-days |
+| GPT-3 (largest) | 175 billion | about 3,700 petaflop/s-days |
+
+Bigger models need more compute, and generally more data too.
+
+**4. Scaling laws (OpenAI paper)**
+- **Compute vs. performance:** test loss falls as the compute budget grows, following a power law. This holds as long as model size and dataset size don't hold training back.
+- **Data vs. performance:** with compute and model size fixed, more training data keeps lowering the loss.
+- **Model size vs. performance:** with compute and data fixed, more parameters lower the loss.
+- A power law shows up as a straight line when both axes are logarithmic.
+- In practice compute is fixed, so data size and parameter count are the two levers you actually control.
+
+**5. The Chinchilla paper (2022; Hoffmann, Borgeaud, Mensch and colleagues)**
+- Its goal was to find the optimal parameter count and data volume for a given compute budget.
+- It found that many 100B+ parameter models such as GPT-3 may be **over-parameterized** (more parameters than needed) and **under-trained** (they would benefit from more data).
+- **Rule of thumb: the optimal training dataset is about 20× the number of parameters, measured in tokens.** A 70B-parameter model should see 1.4 trillion tokens.
+- LLaMA was trained on 1.4 trillion tokens, close to the Chinchilla recommendation; several other large models were trained on less than the optimal amount.
+- The compute-optimal Chinchilla model outperforms non-optimal models such as GPT-3 on a wide range of downstream tasks.
+
+**6. Where this is heading**
+- "Bigger is always better" is giving way to smaller, optimally trained models.
+- **BloombergGPT** is an example: 50B parameters, trained following the Chinchilla scaling laws, with good performance. It is also a case where pre-training from scratch was necessary (covered in the next video).
+
+## Key terms
+- **Compute budget**: the hardware, training time, and money available for training.
+- **Petaflop/s-day**: a unit of compute, 1 quadrillion operations per second sustained for a day.
+- **Test loss**: the model's error on held-out data, used as a proxy for performance; lower is better.
+- **Power law**: one variable is proportional to another raised to some power; a straight line on a log-log plot.
+- **Scaling laws**: the measured relationships between compute, data size, model size, and performance.
+- **Compute-optimal model**: a model whose size and training data are balanced to get the best performance from a given compute budget.
+- **Chinchilla**: the compute-optimal model from the 2022 paper, and the name commonly used for the paper itself.
+- **Over-parameterized**: having more parameters than needed for the task.
+- **Under-trained**: trained on too little data for the model's size.
+- **20× rule**: optimal training tokens ≈ 20 × number of parameters.
+
+## One-line takeaway
+For a fixed compute budget, don't just make the model bigger: balance size with data, at roughly 20 tokens of training data per parameter.
+
+The transcript had a few speech-to-text errors, which I corrected: the authors are Hoffmann, Borgeaud, and Mensch, "LAMA" is LLaMA, "chinchilla loss" is the Chinchilla scaling laws, and "Bloomberg GPT" is BloombergGPT.
