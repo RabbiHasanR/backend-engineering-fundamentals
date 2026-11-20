@@ -100,3 +100,48 @@ You can fine-tune a model on a single task with relatively few examples. Full fi
 - **Adapter layers:** the small task-specific layers that PEFT trains.
 
 
+
+
+
+# Lesson 4: Multi-task Instruction Fine-tuning
+
+## What the lecture discusses
+How multi-task fine-tuning works, the FLAN family of models (especially FLAN-T5), the SAMSum dataset and its prompt template, and how to fine-tune FLAN-T5 further for a specific domain with DialogSum.
+
+## Core idea
+Training on a mixed dataset that covers many tasks improves the model on all of them at the same time, which avoids catastrophic forgetting. Even a strong general instruct model like FLAN-T5 can then be fine-tuned again on **domain-specific data** so it does better on your own use case.
+
+## Main framework to remember
+
+**Multi-task fine-tuning**
+- The dataset mixes many tasks, such as summarization, review rating, code translation, and entity recognition.
+- Over many epochs, the losses across all examples update the weights, giving an instruction-tuned model that is good at many tasks.
+- **Drawback:** it needs a lot of data, around **50,000–100,000 examples**.
+- **Benefit:** the models are very capable and work well where good performance on many tasks is needed.
+
+**FLAN models**
+- FLAN = **Fine-tuned LAnguage Net**, a specific set of instructions used to fine-tune different models.
+- FLAN fine-tuning is the last training step, so the paper calls it the "dessert" after the "main course" of pre-training.
+- **FLAN-T5** is the FLAN version of T5, and **FLAN-PaLM** is the FLAN version of PaLM.
+- FLAN-T5 is fine-tuned on **473 datasets across 146 task categories**, which makes it a good general-purpose instruct model.
+
+**SAMSum dataset (used in FLAN-T5)**
+- About **16,000 messenger-style conversations with summaries**, written by linguists.
+- It trains the model to summarize dialogue, and it's part of the Muffin collection.
+- Its prompt template uses **several phrasings of the same instruction** ("Briefly summarize that dialogue", "What is a summary of this dialogue?", and so on). This helps the model generalize.
+- The dialogue goes into the template and the summary is the label.
+
+**Domain-specific fine-tuning (example: customer service)**
+- SAMSum is mostly casual chat between friends, so it doesn't match customer support language well.
+- **DialogSum** has **13,000+ support-chat dialogues with summaries**, and FLAN-T5 has not seen it before.
+- **Before fine-tuning**, FLAN-T5's summary of a hotel check-in chat was okay but missed key details and **invented information** (the hotel name and city).
+- **After fine-tuning on DialogSum**, the summary was close to the human one: nothing made up, all important details kept, and both people named.
+- **In practice**, your company's own internal data (e.g. real support chats) gives the best results.
+
+## Key terms
+- **Multi-task fine-tuning:** fine-tuning on examples from many tasks at once.
+- **FLAN:** a set of instructions used for multi-task fine-tuning of models (FLAN-T5, FLAN-PaLM).
+- **SAMSum:** a dialogue summarization dataset of casual messenger-style chats.
+- **DialogSum:** a dialogue summarization dataset of support chats, used in this week's lab.
+- **Prompt template with varied instructions:** different wordings of the same task to help the model generalize.
+- **Hallucination (fabricated info):** the model adding details that aren't in the input. Here, domain fine-tuning removed it.
