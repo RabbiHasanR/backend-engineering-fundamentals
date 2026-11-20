@@ -145,3 +145,168 @@ Training on a mixed dataset that covers many tasks improves the model on all of 
 - **DialogSum:** a dialogue summarization dataset of support chats, used in this week's lab.
 - **Prompt template with varied instructions:** different wordings of the same task to help the model generalize.
 - **Hallucination (fabricated info):** the model adding details that aren't in the input. Here, domain fine-tuning removed it.
+
+
+
+
+
+
+
+
+
+# Lesson 5: Scaling Instruct Models (FLAN paper)
+
+## The one-line answer
+In this paper, "scaling" doesn't mean scaling a server. It means **making instruction fine-tuning bigger** and checking whether the model gets smarter. They went bigger in **3 ways**, and all 3 helped: (1) more tasks, (2) a bigger model, (3) chain-of-thought data.
+
+## First: Dataset vs Task vs Category
+
+| Term | Meaning | Example |
+|---|---|---|
+| **Dataset** | Raw collection of examples | Amazon Reviews, SAMSum |
+| **Task** | A specific job made from a dataset by adding an instruction | "Predict the star rating of this review" |
+| **Category** | A group of similar tasks | Summarization, classification, translation |
+
+**Key point:** one dataset can make **many tasks**. For example, Amazon Reviews can become:
+- "Predict the rating" (classification)
+- "Generate a 5-star review" (text generation)
+- "Describe this review in one sentence" (summarization)
+
+That's why the paper's training mix has **473 datasets → 1,836 tasks → 146 categories**.
+
+**School analogy:** dataset = textbook, task = type of exercise, category = subject.
+
+## The 3 ways they scaled it
+
+**1. More tasks (up to 1,836)**
+- They collected **more datasets**, turned them into **more tasks** with different instructions, and covered **many categories**.
+- Analogy: a student who practices math, English, physics, and history does better on a surprise new subject than one who only practiced math.
+
+**2. A bigger model (up to 540B parameters)**
+- The **data stays the same**. Only the model gets bigger.
+- They fine-tuned PaLM 540B and called the result **Flan-PaLM**.
+- Finding: performance improved with both a larger model and more tasks.
+
+**3. Chain-of-Thought (CoT) data added to training**
+- They **added new CoT tasks** whose answers show step-by-step reasoning, not just the final answer. It's like adding "show your working" homework.
+- Example:
+  - Question: The cafeteria had 23 apples, used 20, then bought 6. How many now?
+  - Normal answer: "9"
+  - CoT answer: "23 − 20 = 3. They bought 6 more, so 3 + 6 = 9."
+- Why it matters: older instruction fine-tuning made reasoning worse. Adding CoT data improved performance on all evaluations.
+
+```
+Datasets (473) → add instructions → Tasks (1,836) → grouped → Categories (146)
+
+Scaling 1 → more datasets, tasks, and categories
+Scaling 2 → same tasks, bigger model
+Scaling 3 → add CoT tasks (step-by-step answers)
+```
+
+## Where the training data came from
+- **Muffin:** dialogue tasks (like SAMSum) and program synthesis (writing code)
+- **T0** and **Natural Instructions v2:** parts of other big task collections
+- **New CoT tasks:** step-by-step reasoning examples
+
+## What "held-out tasks" means
+Some tasks were **kept hidden during training** and only used for testing.
+- Analogy: a teacher keeps some exam questions secret. If the student still answers them well, they actually *learned* and didn't just memorize.
+- This shows **generalization**: doing well on tasks the model never saw.
+
+## Results
+- **Better performance:** Flan-PaLM 540B beat PaLM 540B by **+9.4% on average** and reached **75.2% on MMLU** (state-of-the-art at the time).
+- **Easier to use:** it can reason zero-shot, with no examples needed in the prompt.
+- **Small models benefit too:** Flan-T5 performs strongly even against much larger models like PaLM 62B.
+
+## Key terms
+- **Dataset:** raw data examples.
+- **Task:** a dataset combined with an instruction (a job for the model).
+- **Category:** a group of similar tasks.
+- **Scaling instruction fine-tuning:** more tasks, a bigger model, and CoT data.
+- **Flan-PaLM:** PaLM 540B after FLAN instruction fine-tuning.
+- **Chain-of-Thought (CoT):** answers that show reasoning steps.
+- **Held-out tasks:** tasks hidden during training and used to test generalization.
+- **Zero-shot reasoning:** solving a problem with no examples in the prompt.
+- **MMLU:** a benchmark of exam-style questions across many subjects.
+
+## How to remember it
+> **More tasks + bigger model + step-by-step examples = a smarter model that also handles tasks it has never seen.**
+
+
+
+
+
+
+
+
+# Lesson 6: LLM Evaluation Metrics: ROUGE and BLEU
+
+## What the lecture discusses
+How to measure whether a model, or a fine-tuned version of it, is performing well. It introduces two common metrics, **ROUGE** (for summarization) and **BLEU** (for translation), shows how they're calculated, and covers their weaknesses.
+
+## Core idea
+Traditional ML can use **accuracy** because its outputs are deterministic and either right or wrong. LLM outputs are **non-deterministic and language-based**, so evaluation is harder:
+- "Mike really loves drinking tea" ≈ "Mike adores sipping tea". The words are different but the meaning is the same.
+- "Mike does not drink coffee" vs "Mike does drink coffee". One word is different but the meaning is opposite.
+
+We need an **automated, structured way** to compare model output with a human-written reference.
+
+## Main framework to remember
+
+**Basic terms**
+- **Unigram** = 1 word, **bigram** = 2 words, **n-gram** = n words
+- **Recall** = matches ÷ words in the **reference**
+- **Precision** = matches ÷ words in the **generated output**
+- **F1** = the harmonic mean of recall and precision = 2 × (P × R) ÷ (P + R)
+
+**ROUGE example**
+Reference: *"It is cold outside"* (4 words)
+Output: *"It is very cold outside"* (5 words)
+
+| Metric | What it matches | Recall | Precision | F1 |
+|---|---|---|---|---|
+| **ROUGE-1** | single words (4 matches) | 4/4 = 1.0 | 4/5 = 0.8 | 0.89 |
+| **ROUGE-2** | word pairs (2 matches: "it is", "cold outside") | 2/3 = 0.67 | 2/4 = 0.5 | 0.57 |
+| **ROUGE-L** | longest common subsequence (length 2) | 2/4 = 0.5 | 2/5 = 0.4 | 0.44 |
+
+- **ROUGE-1** ignores word order.
+- **ROUGE-2** captures a little word order, so its scores are lower and drop further for longer sentences.
+- **ROUGE-L** uses the longest common sequence of words instead of a fixed n-gram size.
+
+**ROUGE problems and fixes**
+
+| Problem | Example | Result |
+|---|---|---|
+| Ignores meaning | "It is **not** cold outside" | Same score as the correct sentence |
+| Repeated words | "cold cold cold cold" | Precision = 4/4 = 1.0 (perfect, but bad output) |
+| Fix: **clipping** | Limit matches to how often the word appears in the reference ("cold" appears once) | Modified precision = 1/4 = 0.25 |
+| Wrong word order | "outside cold it is" | Still a perfect score, even with clipping |
+
+So the best n-gram size depends on the sentence, its length, and your use case.
+
+**BLEU score**
+- It's the **average precision across several n-gram sizes** (1-gram, 2-gram, 3-gram, and so on).
+- It checks how many n-grams in the machine translation match the reference translation.
+- Example:
+  - Reference: "I am very happy to say that I am drinking a warm cup of tea."
+  - Candidate: "I am very happy that I am drinking a cup of tea." BLEU = **0.495**
+  - The closer the output is to the reference, the closer the score gets to **1**.
+- Libraries like **Hugging Face** calculate both ROUGE and BLEU easily. This week's lab uses ROUGE to compare the model before and after fine-tuning.
+
+**When to use what**
+- **ROUGE:** summarization tasks
+- **BLEU:** translation tasks
+- Both are simple and cheap, so they're good for **quick checks while iterating**. **Don't use them alone for the final evaluation.**
+- Only compare ROUGE scores **from the same task**. Scores from different tasks aren't comparable.
+- For overall model evaluation, use **benchmarks** made by researchers (next video).
+
+## Key terms
+- **ROUGE:** Recall-Oriented Understudy for Gisting Evaluation. It compares a generated summary with a human reference summary.
+- **BLEU:** Bilingual Evaluation Understudy. It compares a machine translation with a human reference translation.
+- **ROUGE-1 / ROUGE-2:** ROUGE using unigrams or bigrams.
+- **ROUGE-L:** ROUGE using the longest common subsequence (LCS).
+- **Clipping:** limits a word's matches to the number of times it appears in the reference.
+- **Non-deterministic:** the same input can produce different outputs.
+
+**How to remember it:**
+> **ROUGE = Recall = summaries. BLEU = translations. Both are quick checks, not final judges.**
