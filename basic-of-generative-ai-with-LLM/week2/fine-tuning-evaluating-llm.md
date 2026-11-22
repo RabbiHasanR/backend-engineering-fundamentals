@@ -310,3 +310,290 @@ So the best n-gram size depends on the sentence, its length, and your use case.
 
 **How to remember it:**
 > **ROUGE = Recall = summaries. BLEU = translations. Both are quick checks, not final judges.**
+
+
+
+
+
+
+
+
+
+# Lesson 7: LLM Benchmarks
+
+## What the lecture discusses
+Why simple metrics like ROUGE and BLEU aren't enough, how to choose evaluation datasets, and the main benchmarks used to measure and compare LLMs: GLUE, SuperGLUE, MMLU, BIG-bench, and HELM.
+
+## Core idea
+To evaluate an LLM **holistically**, use **benchmarks**: ready-made datasets and tests that researchers designed to check specific skills and risks. Test the model on data it **hasn't seen during training**, so you measure its real ability and not memorization.
+
+## Main framework to remember
+
+**How to choose an evaluation dataset**
+- Pick datasets that **isolate specific skills**, such as reasoning or common sense.
+- Include datasets that check **risks**, such as disinformation or copyright infringement.
+- Make sure the model **didn't see the data in training**.
+
+**The benchmarks**
+
+| Benchmark | Year | What it tests | Remember |
+|---|---|---|---|
+| **GLUE** (General Language Understanding Evaluation) | 2018 | Basic language tasks such as sentiment analysis and question answering | Encourages models that generalize across tasks |
+| **SuperGLUE** | 2019 | Harder tasks such as multi-sentence reasoning and reading comprehension | Successor to GLUE that fixes its limits |
+| **MMLU** (Massive Multitask Language Understanding) | — | World knowledge and problem solving in elementary math, US history, computer science, law, and more | Made for modern LLMs and goes beyond language understanding |
+| **BIG-bench** | — | 204 tasks: linguistics, math, biology, physics, common sense, social bias, software development, and more | Comes in **3 sizes** to keep inference costs manageable |
+| **HELM** (Holistic Evaluation of Language Models) | — | **7 metrics across 16 core scenarios**, including **fairness, bias, and toxicity** | Goes beyond accuracy, is a "living" benchmark that keeps evolving, and improves transparency |
+
+GLUE and SuperGLUE have **leaderboards** for comparing models. HELM has a **results page** where you can find models that suit your project.
+
+**The "arms race"**
+- As models get bigger, they start to **match human scores** on benchmarks like SuperGLUE.
+- In general use, though, they still **aren't at human level**.
+- So researchers keep building **harder benchmarks** (MMLU, BIG-bench) to keep up with new model abilities.
+
+## Key terms
+- **Benchmark:** a standard set of datasets and tasks used to measure and compare models.
+- **Holistic evaluation:** judging a model on many skills and risks, not just one score.
+- **Leaderboard:** a public ranking of models on a benchmark.
+- **Unseen evaluation data:** test data the model didn't see in training, which gives an honest measurement.
+- **Fairness, bias, toxicity:** safety-related metrics that HELM measures, which matter more as LLMs sound more human.
+- **Inference cost:** the compute cost of running the model on all the benchmark tasks. This is why BIG-bench comes in 3 sizes.
+
+**How to remember it:**
+> **ROUGE/BLEU = quick checks. Benchmarks = full exams.**
+> GLUE → SuperGLUE (language), MMLU → BIG-bench (knowledge and reasoning), HELM (accuracy + fairness + bias + toxicity).
+
+
+
+
+
+
+
+
+
+
+
+# Lesson 8: Parameter-Efficient Fine-Tuning (PEFT): Introduction
+
+## What the lecture discusses
+Why full fine-tuning is so memory-hungry, how PEFT solves this by training only a small number of parameters, and the 3 main classes of PEFT methods: selective, reparameterization, and additive.
+
+## Core idea
+**Full fine-tuning** updates **every** weight, and it needs a lot of memory for training components beyond the model itself. **PEFT** keeps most or all of the original weights **frozen** and trains only a **small set** of parameters. That makes training cheaper (often one GPU is enough), reduces catastrophic forgetting, and makes it easy to adapt one model to many tasks.
+
+## Main framework to remember
+
+**Why full fine-tuning is expensive**
+Memory is needed for much more than the model weights:
+- Model weights (hundreds of GB for the largest models)
+- Optimizer states
+- Gradients
+- Forward activations
+- Temporary memory
+
+These extra components can be **many times larger than the model**, which is too much for consumer hardware.
+
+**Full fine-tuning vs PEFT**
+
+| | Full fine-tuning | PEFT |
+|---|---|---|
+| Weights updated | All of them | A small subset or new parameters only |
+| Trained parameters | 100% | Much smaller (sometimes just 15–20% of the original weights) |
+| Hardware | Large compute | Often a **single GPU** |
+| Catastrophic forgetting | More likely | **Less likely** (the original model is barely changed) |
+| Storage for multiple tasks | A **full-size copy per task** (expensive) | **Small task weights** (as small as **MBs**) plus one shared original model |
+
+**How PEFT handles multiple tasks**
+- Train a small set of PEFT weights **for each task**.
+- At inference, **combine** them with the original LLM weights.
+- **Swap** the PEFT weights to switch tasks, using the same base model each time.
+
+Example: one base LLM + a summarization adapter (MBs) + a translation adapter (MBs) + a Q&A adapter (MBs), instead of 3 full copies of the model.
+
+**PEFT trade-offs**
+Every method balances: parameter efficiency, memory efficiency, training speed, model quality, and inference cost.
+
+**3 main classes of PEFT methods**
+
+| Class | How it works | Example | Note |
+|---|---|---|---|
+| **1. Selective** | Fine-tune only a **subset of the original parameters** (certain layers, components, or parameter types) | — | Mixed performance and big trade-offs, so it's **not the course focus** |
+| **2. Reparameterization** | Work with the original weights but train **new low-rank transformations** of them, which means far fewer parameters | **LoRA** | Next video |
+| **3. Additive** | Keep **all original weights frozen** and **add new trainable components** | Adapters, soft prompts | See below |
+
+**The 2 types of additive methods**
+- **Adapters:** add new trainable **layers** inside the model, usually in the encoder or decoder after the attention or feed-forward layers.
+- **Soft prompts:** keep the model architecture fixed and change the **input** instead, by adding trainable parameters to the prompt embeddings or retraining the embedding weights. The course covers **prompt tuning**, a soft prompt method, in this lesson.
+
+## Key terms
+- **PEFT (Parameter-Efficient Fine-Tuning):** fine-tuning that trains only a small number of parameters.
+- **Frozen weights:** original model weights that are not updated during training.
+- **Optimizer states, gradients, activations:** the extra memory needed during training, often bigger than the model itself.
+- **Selective methods:** train a chosen subset of the existing parameters.
+- **Reparameterization methods:** train low-rank versions of the weights (LoRA).
+- **Additive methods:** add new trainable parts (adapters or soft prompts).
+- **Adapter layers:** small new layers added inside the model.
+- **Soft prompts / prompt tuning:** trainable parameters added to the input embeddings.
+
+**How to remember it:**
+> **Full fine-tuning = retrain the whole model, with a full copy per task. PEFT = freeze the model and train small add-ons you can swap per task.**
+> The 3 classes: **Selective** (pick some weights), **Reparameterization** (LoRA), **Additive** (adapters and soft prompts).
+
+
+
+
+
+
+# Lesson 9: LoRA (Low-Rank Adaptation)
+
+## What the lecture discusses
+How LoRA works inside the transformer, a worked example of how many parameters it saves, how to switch tasks with LoRA, how LoRA performs compared with full fine-tuning (using ROUGE), and how to choose the LoRA rank.
+
+## Core idea
+LoRA **freezes all the original weights** and adds **two small matrices (A and B)** next to a weight matrix. Only A and B are trained. Their product **B × A** has the **same shape** as the original weight matrix, so it can be **added to the original weights** for inference. You get similar performance to full fine-tuning while training far fewer parameters.
+
+## Main framework to remember
+
+**How LoRA works (step by step)**
+1. **Freeze** the original LLM weights (W).
+2. **Inject 2 small rank decomposition matrices**, A and B, alongside W.
+3. **Train only A and B** with normal supervised learning.
+4. For inference, **multiply B × A**, which gives a matrix the same size as W.
+5. **Add** it to the original weights: **W_new = W + B × A**.
+6. **Replace** W in the model with W_new.
+
+The model keeps the **same number of parameters**, so there is **little to no extra inference latency**.
+
+**Where to apply LoRA**
+- Usually only to the **self-attention layers**, which is often enough for good results.
+- It can also go on the feed-forward layers, but most LLM parameters are in attention, so that's where the biggest savings are.
+
+**Worked example (from "Attention Is All You Need")**
+
+| | Shape | Trainable parameters |
+|---|---|---|
+| Original weight matrix W | 512 × 64 | **32,768** |
+| LoRA matrix A (rank = 8) | 8 × 64 | 512 |
+| LoRA matrix B (rank = 8) | 512 × 8 | 4,096 |
+| **LoRA total** | — | **4,608** |
+
+**Result: 4,608 instead of 32,768 trainable parameters, an 86% reduction.**
+Check: B × A = (512 × 8) × (8 × 64) = **512 × 64**, the same shape as W.
+
+Because of this, LoRA can often run on a **single GPU** with no need for a distributed GPU cluster.
+
+**Switching tasks with LoRA**
+- Train **one small pair of A and B per task** (task A, task B, and so on).
+- For task A: compute B × A, add it to the frozen W, and run inference.
+- For task B: take task B's matrices, compute their product, add it to W, and update the model again.
+- LoRA matrices need **very little storage**, so there's **no need to store many full-size LLM copies**.
+
+**Performance (FLAN-T5, dialogue summarization, ROUGE-1)**
+
+| Model | ROUGE-1 gain over base | Compute |
+|---|---|---|
+| FLAN-T5 base | baseline (fairly low) | — |
+| Full fine-tuning | **+0.19** | High (all weights trained) |
+| LoRA fine-tuning | **+0.17** | **Much lower** (few parameters trained) |
+
+LoRA is **only slightly worse** than full fine-tuning but uses far less compute, so it's usually a **worthwhile trade-off**.
+
+**How to choose the rank**
+- **Smaller rank** means fewer trainable parameters and more compute savings, but it might hurt performance.
+- In the original LoRA paper (Microsoft), the loss **plateaued for ranks above 16**. Bigger matrices didn't help.
+- **Good range: rank 4 to 32.**
+- Choosing the best rank is still **an active area of research**.
+
+## Key terms
+- **LoRA (Low-Rank Adaptation):** a reparameterization PEFT method that trains small low-rank matrices instead of the full weights.
+- **Rank decomposition matrices (A and B):** the two small matrices whose product B × A matches the shape of the original weight matrix.
+- **Rank (r):** the small shared dimension of A and B (for example, 8). It controls how many parameters are trained.
+- **Frozen weights:** the original LLM weights, which are not updated.
+- **Inference latency:** the time to produce an output. LoRA adds little to none because the parameter count stays the same.
+- **Task switching:** swapping in a different pair of LoRA matrices for each task on the same base model.
+
+**How to remember it:**
+> **Freeze W, train small A and B, then add B × A back to W.**
+> 86% fewer parameters, ROUGE almost as good as full fine-tuning (+0.17 vs +0.19), and rank 4 to 32 works well.
+
+
+
+
+
+
+# Lesson 10: Prompt Tuning and Week 2 Recap
+
+## What the lecture discusses
+Prompt tuning, an additive PEFT method that trains extra "soft prompt" tokens instead of changing the model weights. It covers how prompt tuning differs from prompt engineering, how well it performs, and its interpretability. It ends with a recap of Week 2 and a mention of QLoRA.
+
+## Core idea
+Prompt tuning **freezes the whole LLM** and adds a small set of **trainable virtual tokens (a soft prompt)** in front of the input embeddings. Supervised learning finds the best values for these tokens for a task. Only a tiny number of parameters are trained, and the same LLM can handle many tasks by **swapping soft prompts**.
+
+## Main framework to remember
+
+**Prompt engineering vs prompt tuning**
+
+| | Prompt engineering | Prompt tuning |
+|---|---|---|
+| What changes | The **words** of your prompt (manually) | **Trainable virtual tokens** added to the prompt (learned) |
+| How | Try different phrases, add one-shot or few-shot examples | Supervised learning finds the best token values |
+| Training | None | Yes, but only the soft prompt |
+| Limits | Manual effort, uses up the context window, may still not perform well enough | Needs training, and the learned tokens are hard to interpret |
+
+**How prompt tuning works**
+1. The input text is turned into embedding vectors (the normal **"hard" tokens**).
+2. A **soft prompt** of **20–100 virtual tokens** is **prepended** to them.
+3. Each soft prompt vector has the **same length** as a normal token embedding.
+4. The **LLM weights stay frozen**, and only the **soft prompt embeddings are updated** during training.
+
+**Hard tokens vs soft tokens**
+- **Hard tokens:** real words, each fixed at one location in the embedding space.
+- **Soft tokens:** virtual tokens that can take **any value** in the continuous embedding space, so they aren't real words.
+
+**Full fine-tuning vs prompt tuning**
+- **Full fine-tuning:** updates the LLM weights, which means millions to billions of parameters.
+- **Prompt tuning:** the LLM is frozen and only the soft prompt is updated, a **very small number of parameters**.
+
+**Multiple tasks**
+- Train **one soft prompt per task**.
+- For inference, **prepend** that task's soft prompt to the input.
+- To switch tasks, **change the soft prompt**. The **same LLM** is used for every task.
+- Soft prompts are **very small on disk**, so this is extremely efficient and flexible.
+
+**Performance (Lester et al., Google, measured on SuperGLUE)**
+
+| Method | Result |
+|---|---|
+| Full fine-tuning (single task) | Best for small models |
+| Multi-task fine-tuning | Strong |
+| **Prompt tuning** | **Weaker for small models**, but **improves as model size grows** |
+| Prompt engineering only | Lowest |
+
+**Key finding:** at around **10 billion parameters**, prompt tuning becomes **as effective as full fine-tuning** and much better than prompt engineering alone.
+
+**Interpretability issue**
+- Soft tokens **don't match any real word** in the vocabulary.
+- But their **nearest-neighbor words** form **tight semantic clusters** related to the task. So the soft prompts learn **word-like meanings**.
+
+## Week 2 recap
+1. **Instruction fine-tuning** adapts a foundation model with prompt–completion examples. A few hundred examples can be enough for a specific task.
+2. **Prompt templates and datasets** were used to train FLAN-T5.
+3. **Evaluation:** metrics (ROUGE, BLEU) and benchmarks (GLUE, SuperGLUE, MMLU, BIG-bench, HELM).
+4. **PEFT** reduces compute and memory. The two methods covered:
+   - **LoRA:** trains low-rank matrices and updates the weights efficiently. It's **the most widely used in practice** because it performs close to full fine-tuning.
+   - **Prompt tuning:** trains soft prompt tokens and leaves the model untouched.
+5. **QLoRA = LoRA + quantization** (from Week 1), which **reduces memory even further**.
+
+## Key terms
+- **Prompt tuning:** an additive PEFT method that trains soft prompt tokens while the LLM stays frozen.
+- **Soft prompt:** the set of trainable virtual tokens prepended to the input embeddings.
+- **Virtual tokens:** learned vectors in the embedding space that aren't real words.
+- **Hard tokens:** normal word tokens with fixed embedding positions.
+- **Prepend:** add to the front of the input.
+- **Semantic clusters:** groups of words with similar meaning near the soft tokens.
+- **QLoRA:** LoRA combined with quantization for lower memory use.
+
+**How to remember it:**
+> **Prompt engineering = you change the words. Prompt tuning = the model learns extra virtual tokens.**
+> LLM frozen, 20–100 soft tokens, one soft prompt per task, as good as full fine-tuning at around 10B parameters.
+> **Week 2 summary:** Instruction fine-tuning → Evaluate (ROUGE/BLEU and benchmarks) → Make it cheap with PEFT (LoRA, prompt tuning, QLoRA).
